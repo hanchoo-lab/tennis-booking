@@ -90,46 +90,37 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         driver.get(COURT_URLS[court_num])
         time.sleep(3.5)
 
-        # Navigate mini calendar to correct month
-        for _ in range(18):
-            header = driver.execute_script("""
-                var re=/(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}/;
-                var match=document.body.innerText.match(re);
-                return match?match[0].trim():null;
-            """)
-            print(f"  Calendar: {header}")
-            if header and target_month in header and str(year) in header:
-                break
-            clicked = driver.execute_script("""
+        # Navigate to correct week using week-view arrows
+        from datetime import date as _d, timedelta as _td
+        target_dt   = _d(year, month, day)
+        today_dt    = _d.today()
+        weeks_ahead = max(0, ((target_dt - _td(days=target_dt.weekday())) -
+                              (today_dt  - _td(days=today_dt.weekday()))).days // 7)
+        print(f"  Advancing {weeks_ahead} week(s)...")
+        for _ in range(weeks_ahead):
+            driver.execute_script("""
                 for(var b of document.querySelectorAll('button')){
                     var l=(b.getAttribute('aria-label')||'').toLowerCase();
-                    if(l.includes('next month')&&!b.disabled){b.click();return true;}
+                    if(l.includes('next')&&!l.includes('month')&&!b.disabled){b.click();return;}
                 }
                 for(var b of document.querySelectorAll('button')){
                     var t=b.textContent.trim();
-                    if((t==='›'||t==='>')&&!b.disabled){b.click();return true;}
+                    if((t==='\u203a'||t==='>')&&!b.disabled){b.click();return;}
                 }
-                return false;
             """)
-            if not clicked:
-                raise RuntimeError("Cannot navigate calendar")
-            time.sleep(0.6)
+            time.sleep(1.0)
 
-        # Click target date
+        # Click date by aria-label only (no guessing by number)
         result = driver.execute_script("""
-            var d=arguments[0],m=arguments[1],y=arguments[2];
-            var exp=m+' '+d+', '+y;
+            var exp=arguments[1]+' '+arguments[0]+', '+arguments[2];
             for(var b of document.querySelectorAll('button')){
-                if((b.getAttribute('aria-label')||'').includes(exp)&&!b.disabled){b.click();return 'aria';}
-            }
-            for(var b of document.querySelectorAll('button')){
-                if(b.textContent.trim()===String(d)&&!b.disabled&&b.offsetParent){b.click();return 'text';}
+                if((b.getAttribute('aria-label')||'').includes(exp)&&!b.disabled){b.click();return true;}
             }
             return null;
         """, day, target_month, year)
         if not result:
-            raise RuntimeError(f"Date {day} not found in calendar")
-        print(f"  Clicked date ({result})")
+            raise RuntimeError(f"{target_month} {day} not clickable — may not be in the booking window yet")
+        print(f"  Clicked {target_month} {day}")
         time.sleep(2.5)
 
         # Click time slot
