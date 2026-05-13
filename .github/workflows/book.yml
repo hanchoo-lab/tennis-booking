@@ -28,6 +28,7 @@ jobs:
       - name: Run bookings
         env:
           BOOKING_EMAIL: ${{ secrets.BOOKING_EMAIL }}
+          TZ: Asia/Jakarta
         run: python book.py
 
       - name: Save updated schedule back to repo
