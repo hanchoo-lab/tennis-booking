@@ -16,10 +16,10 @@
     "date": "2026-05-17",
     "time": "17:00",
     "run_at": "2026-05-13T17:00:00.000Z",
-    "status": "pending",
-    "message": "",
+    "status": "failed",
+    "message": "Message: javascript error: Invalid regular expression: missing /\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x55cdcc4e2b6a <unknown>\n#1 0x55cdcbee4265 <unknown>\n#2 0x55cdcbeeb111 <unknown>\n#3 0x55cdcbeedc5b <unknown>\n#4 0x55cdcbf80a99 <unknown>\n#5 0x55cdcbf7f969 <unknown>\n#6 0x55cdcbf2a5cf <unknown>\n#7 0x55cdcbf2b391 <unknown>\n#8 0x55cdcc4a804b <unknown>\n#9 0x55cdcc4ab00d <unknown>\n#10 0x55cdcc494808 <unknown>\n#11 0x55cdcc4abba0 <unknown>\n#12 0x55cdcc47b280 <unknown>\n#13 0x55cdcc4cfdb8 <unknown>\n#14 0x55cdcc4cff88 <unknown>\n#15 0x55cdcc4e15de <unknown>\n#16 0x7f24db89caa4 <unknown>\n#17 0x7f24db929c6c <unknown>\n",
     "created_at": "2026-05-13T09:57:15.798Z",
-    "completed_at": null
+    "completed_at": "2026-05-13T10:04:12.885305"
   },
   {
     "id": "0t9l0c0o",
