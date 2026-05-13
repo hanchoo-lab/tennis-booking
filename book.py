@@ -91,18 +91,34 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         driver.get(COURT_URLS[court_num])
         time.sleep(4)
 
+        # Override Chrome's timezone to WIB so the booking page shows correct local times
+        try:
+            driver.execute_cdp_cmd("Emulation.setTimezoneOverride", {"timezoneId": "Asia/Jakarta"})
+            driver.refresh()
+            time.sleep(4)
+            print("  Timezone overridden to Asia/Jakarta")
+        except Exception as tz_err:
+            print(f"  Warning: timezone override failed: {tz_err}")
+
         # ── Step 1: Navigate to the correct date ──────────────────────────
-        # Dump all date buttons immediately so we can see what's on the page
+        # Google Calendar uses both <button> AND <div role="button"> for calendar cells.
+        # We must query both. Also check aria-disabled for role="button" elements.
+        CLICKABLE = 'button,[role="button"]'
+
         def dump_page_dates():
+            """Print all date-like aria-labels on the page for debugging."""
             info = driver.execute_script(
                 "var out=[];"
-                "for(var b of document.querySelectorAll('button')){"
+                "var sel='button,[role=\"button\"]';"
+                "for(var b of document.querySelectorAll(sel)){"
                 "  var lbl=b.getAttribute('aria-label')||'';"
-                "  if(/[A-Z][a-z]+ [0-9]/.test(lbl)){out.push(lbl+(b.disabled?' [DISABLED]':''));}"
+                "  if(/[A-Z][a-z]+ [0-9]/.test(lbl)||/[0-9]+, [A-Z]/.test(lbl)){"
+                "    var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+                "    out.push(lbl+(dis?' [DISABLED]':''));}"
                 "}"
                 "return out;"
             )
-            print(f"  Date buttons on page: {info}")
+            print(f"  Date elements on page ({len(info)}): {info[:8]}")
             return info
 
         print(f"  Target date label: '{target_label}'")
@@ -110,17 +126,18 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
 
         clicked_date = False
         for attempt in range(16):
-            # Try clicking the target date (including disabled — Google sometimes marks
-            # dates with only some slots taken as "disabled" in aria but still clickable)
+            # Try clicking the target date — search button AND role="button" elements.
+            # First pass: only enabled; second pass: try disabled too (some Google UIs
+            # mark dates with no morning slots as aria-disabled but they're still tappable).
             result = driver.execute_script(
                 "var exp=arguments[0];"
-                "for(var b of document.querySelectorAll('button')){"
+                "var sel='button,[role=\"button\"]';"
+                "for(var b of document.querySelectorAll(sel)){"
                 "  var lbl=b.getAttribute('aria-label')||'';"
-                "  if(lbl.indexOf(exp)!==-1&&!b.disabled){b.click();return 'enabled';}"
+                "  var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+                "  if(lbl.indexOf(exp)!==-1&&!dis){b.click();return 'enabled';}"
                 "}"
-                # Second pass: try disabled buttons too (some Google UI marks past-day buttons
-                # as disabled but the target day might still be bookable)
-                "for(var b of document.querySelectorAll('button')){"
+                "for(var b of document.querySelectorAll(sel)){"
                 "  var lbl=b.getAttribute('aria-label')||'';"
                 "  if(lbl.indexOf(exp)!==-1){b.click();return 'disabled-forced';}"
                 "}"
@@ -132,31 +149,30 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
                 print(f"  Clicked date '{target_label}' ({result}) on attempt {attempt+1}")
                 break
 
-            # Not found — advance calendar
-            visible = dump_page_dates()
+            # Not found — log and advance
+            dump_page_dates()
             advanced = driver.execute_script(
-                "var btns=document.querySelectorAll('button');"
-                # Prefer next-week / next-period button (not month)
+                "var sel='button,[role=\"button\"]';"
+                "var btns=document.querySelectorAll(sel);"
                 "for(var b of btns){"
                 "  var lbl=(b.getAttribute('aria-label')||'').toLowerCase();"
-                "  if(lbl.indexOf('next')!==-1&&lbl.indexOf('month')===-1&&!b.disabled){b.click();return 'week-next';}"
+                "  var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+                "  if(lbl.indexOf('next')!==-1&&lbl.indexOf('month')===-1&&!dis){b.click();return 'week-next';}"
                 "}"
-                # Arrow buttons
                 "for(var b of btns){"
                 "  var t=b.textContent.trim();"
-                "  if((t==='›'||t==='>')&&!b.disabled){b.click();return 'arrow-next';}"
+                "  if((t==='›'||t==='>')&&!(b.disabled||b.getAttribute('aria-disabled')==='true')){b.click();return 'arrow-next';}"
                 "}"
-                # Any next button
                 "for(var b of btns){"
                 "  var lbl=(b.getAttribute('aria-label')||'').toLowerCase();"
-                "  if(lbl.indexOf('next')!==-1&&!b.disabled){b.click();return 'any-next';}"
+                "  if(lbl.indexOf('next')!==-1&&!(b.disabled||b.getAttribute('aria-disabled')==='true')){b.click();return 'any-next';}"
                 "}"
                 "return null;"
             )
             if not advanced:
-                print("  ERROR: No Next button found — dumping ALL button labels:")
+                print("  ERROR: No Next button found — dumping ALL clickable element labels:")
                 all_btns = driver.execute_script(
-                    "return Array.from(document.querySelectorAll('button'))"
+                    "return Array.from(document.querySelectorAll('button,[role=\"button\"]'))"
                     ".map(b=>(b.getAttribute('aria-label')||b.textContent.trim()).substring(0,80));"
                 )
                 for btn in all_btns:
@@ -184,8 +200,10 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         for attempt in range(15):
             result = driver.execute_script(
                 "var t=arguments[0].toLowerCase();"
-                "for(var b of document.querySelectorAll('button')){"
-                "  if(b.textContent.trim().toLowerCase()===t&&!b.disabled){b.click();return true;}"
+                "var sel='button,[role=\"button\"]';"
+                "for(var b of document.querySelectorAll(sel)){"
+                "  var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+                "  if(b.textContent.trim().toLowerCase()===t&&!dis){b.click();return true;}"
                 "}"
                 "return false;",
                 display_time
@@ -198,9 +216,11 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         if not found_time:
             visible_times = driver.execute_script(
                 "var out=[];"
-                "for(var b of document.querySelectorAll('button')){"
+                "var sel='button,[role=\"button\"]';"
+                "for(var b of document.querySelectorAll(sel)){"
                 "  var t=b.textContent.trim();"
-                "  if(/^[0-9]+:[0-9]+(am|pm)$/i.test(t)){out.push(t+(b.disabled?' [DISABLED]':''));}"
+                "  var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+                "  if(/^[0-9]+:[0-9]+(am|pm)$/i.test(t)){out.push(t+(dis?' [DISABLED]':''));}"
                 "}"
                 "return out;"
             )
@@ -239,8 +259,10 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
 
         # ── Step 4: Click Book ────────────────────────────────────────────
         booked = driver.execute_script(
-            "for(var b of document.querySelectorAll('button')){"
-            "  if(b.textContent.trim()==='Book'&&!b.disabled){b.click();return true;}"
+            "var sel='button,[role=\"button\"]';"
+            "for(var b of document.querySelectorAll(sel)){"
+            "  var dis=b.disabled||b.getAttribute('aria-disabled')==='true';"
+            "  if(b.textContent.trim()==='Book'&&!dis){b.click();return true;}"
             "}"
             "return false;"
         )
