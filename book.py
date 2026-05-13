@@ -206,7 +206,7 @@ def main():
     ran = 0
 
     for b in bookings:
-        if b["status"] != "pending":
+        if b["status"] not in ("pending", "queued"):
             continue
         run_at = datetime.fromisoformat(b["run_at"]).date()
         if run_at > today:
