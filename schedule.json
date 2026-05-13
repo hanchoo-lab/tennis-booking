@@ -5,10 +5,8 @@
     "date": "2026-05-15",
     "time": "06:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "failed",
-    "created_at": "2026-05-13T09:56:17.224Z",
-    "message": "Date 'May 15, 2026' not found/clickable after 16 attempts. It may be fully booked or outside the 72-hour booking window.",
-    "completed_at": "2026-05-13T18:12:12.238598"
+    "status": "queued",
+    "created_at": "2026-05-13T09:56:17.224Z"
   },
   {
     "id": "3nyc0qjq",
@@ -16,10 +14,8 @@
     "date": "2026-05-15",
     "time": "07:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "failed",
-    "created_at": "2026-05-13T10:18:23.196Z",
-    "message": "Date 'May 15, 2026' not found/clickable after 16 attempts. It may be fully booked or outside the 72-hour booking window.",
-    "completed_at": "2026-05-13T18:12:33.053925"
+    "status": "queued",
+    "created_at": "2026-05-13T10:18:23.196Z"
   },
   {
     "id": "7oy44rdb",
@@ -27,9 +23,7 @@
     "date": "2026-05-17",
     "time": "17:00",
     "run_at": "2026-05-13T17:00:00.000Z",
-    "status": "failed",
-    "created_at": "2026-05-13T09:57:15.798Z",
-    "message": "Date 'May 17, 2026' not found/clickable after 16 attempts. It may be fully booked or outside the 72-hour booking window.",
-    "completed_at": "2026-05-13T18:12:53.856222"
+    "status": "queued",
+    "created_at": "2026-05-13T09:57:15.798Z"
   }
 ]
