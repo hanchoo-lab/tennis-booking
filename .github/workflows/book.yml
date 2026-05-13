@@ -30,6 +30,7 @@ jobs:
       - name: Run bookings
         env:
           BOOKING_EMAIL: ${{ secrets.BOOKING_EMAIL }}
+          TZ: Asia/Jakarta
         run: python book.py
 
       - name: Save updated schedule back to repo
@@ -40,10 +41,17 @@ jobs:
           git diff --staged --quiet || git commit -m "Update booking status [skip ci]"
           git push
 
+<<<<<<< HEAD
       - name: Upload debug screenshot (if any)
+=======
+      - name: Upload debug screenshot
+>>>>>>> 91ae41bab75df89da1ace446c184c943b0d9096c
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: debug-screenshot
           path: screenshot_debug.png
+<<<<<<< HEAD
           if-no-files-found: ignore
+=======
+>>>>>>> 91ae41bab75df89da1ace446c184c943b0d9096c
