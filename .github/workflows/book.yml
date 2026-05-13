@@ -1,0 +1,39 @@
+name: Tennis Court Auto-Booking
+
+on:
+  schedule:
+    # Runs at 17:00 UTC daily = midnight WIB (UTC+7)
+    - cron: '0 17 * * *'
+  workflow_dispatch:   # lets you run it manually from GitHub for testing
+
+permissions:
+  contents: write      # needed to commit the updated schedule.json
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bookings
+        env:
+          BOOKING_EMAIL: ${{ secrets.BOOKING_EMAIL }}
+        run: python book.py
+
+      - name: Save updated schedule back to repo
+        run: |
+          git config user.name  "Tennis Booking Bot"
+          git config user.email "bot@noreply.github.com"
+          git add schedule.json
+          git diff --staged --quiet || git commit -m "Update booking status [skip ci]"
+          git push
