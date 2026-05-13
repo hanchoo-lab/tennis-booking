@@ -37,3 +37,10 @@ jobs:
           git add schedule.json
           git diff --staged --quiet || git commit -m "Update booking status [skip ci]"
           git push
+
+      - name: Upload debug screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: screenshot_debug.png
