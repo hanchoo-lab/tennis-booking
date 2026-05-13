@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JIS Tennis Court Booking</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue:  #2563eb; --blight: #eff6ff; --bmed: #dbeafe;
+      --green: #16a34a; --red: #dc2626; --gray: #64748b;
+      --bg: #f1f5f9; --card: #fff; --border: #e2e8f0; --text: #1e293b;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    header { background: linear-gradient(135deg,#1d4ed8,#3b82f6); color:#fff;
+             padding:1rem 1.5rem; display:flex; align-items:center; gap:.75rem;
+             box-shadow:0 2px 8px rgba(0,0,0,.18); }
+    header h1 { font-size:1.2rem; font-weight:700; }
+    header p  { font-size:.75rem; opacity:.8; margin-top:2px; }
+
+    /* Setup screen */
+    #setupScreen { max-width:500px; margin:3rem auto; padding:0 1rem; }
+    .setup-card { background:var(--card); border-radius:1rem;
+                  box-shadow:0 2px 12px rgba(0,0,0,.1); padding:2rem; }
+    .setup-card h2 { font-size:1.1rem; margin-bottom:1rem; }
+    .setup-card p  { font-size:.85rem; color:var(--gray); line-height:1.6; margin-bottom:1.5rem; }
+    .field { margin-bottom:1rem; }
+    .field label { display:block; font-size:.8rem; font-weight:600; margin-bottom:.35rem; }
+    .field input { width:100%; padding:.6rem .75rem; border:1.5px solid var(--border);
+                   border-radius:.45rem; font-size:.9rem; outline:none; transition:border .15s; }
+    .field input:focus { border-color:var(--blue); }
+    .primary-btn { width:100%; padding:.7rem; border:none; border-radius:.45rem;
+                   background:var(--blue); color:#fff; font-size:.95rem; font-weight:700;
+                   cursor:pointer; margin-top:.5rem; transition:background .15s; }
+    .primary-btn:hover { background:#1d4ed8; }
+    .help-link { font-size:.75rem; color:var(--blue); text-decoration:none; }
+    .help-link:hover { text-decoration:underline; }
+
+    /* Main layout */
+    #mainScreen { display:none; }
+    .layout { display:grid; grid-template-columns:1fr 330px; gap:1.25rem;
+              max-width:1080px; margin:0 auto; padding:1.25rem 1rem 3rem; }
+    @media(max-width:760px){ .layout{grid-template-columns:1fr;} }
+
+    /* Week tabs */
+    .week-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem; }
+    .week-tab { padding:.38rem 1rem; border-radius:9999px; border:2px solid var(--blue);
+                background:#fff; color:var(--blue); font-weight:600; font-size:.8rem;
+                cursor:pointer; transition:all .15s; }
+    .week-tab.active { background:var(--blue); color:#fff; }
+
+    /* Day card */
+    .day-card { background:var(--card); border-radius:.8rem;
+                box-shadow:0 1px 4px rgba(0,0,0,.07); overflow:hidden; margin-bottom:1rem; }
+    .day-head { background:var(--blight); padding:.55rem 1rem; font-weight:700;
+                font-size:.88rem; color:var(--blue); border-bottom:1px solid var(--bmed);
+                display:flex; align-items:baseline; gap:.5rem; }
+    .day-head .sub { font-size:.73rem; font-weight:400; color:#3b82f6; }
+    .day-head.today { background:var(--bmed); }
+    table { width:100%; border-collapse:collapse; }
+    thead th { padding:.45rem .75rem; font-size:.7rem; text-transform:uppercase;
+               letter-spacing:.06em; color:var(--gray); border-bottom:1px solid var(--border);
+               text-align:center; }
+    thead th:first-child { text-align:left; width:90px; }
+    tbody td { padding:.45rem .75rem; border-bottom:1px solid #f8fafc;
+               text-align:center; vertical-align:middle; }
+    tbody td:first-child { text-align:left; font-size:.85rem; font-weight:500; }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr.past td { opacity:.3; pointer-events:none; }
+
+    /* Select button */
+    .sel-btn { padding:.32rem .8rem; border-radius:.4rem; border:2px solid var(--blue);
+               background:#fff; color:var(--blue); font-size:.78rem; font-weight:700;
+               cursor:pointer; transition:all .15s; min-width:72px; }
+    .sel-btn:hover  { background:var(--blight); }
+    .sel-btn.picked { background:var(--blue); color:#fff; }
+    .sel-btn.picked::before { content:"✓ "; }
+    .sel-btn:disabled { opacity:.35; cursor:not-allowed; }
+    .sel-btn.done    { background:#dcfce7; border-color:#16a34a; color:#15803d; cursor:default; }
+    .sel-btn.failed  { background:#fee2e2; border-color:#dc2626; color:#b91c1c; cursor:default; }
+
+    /* Right panels */
+    .right { display:flex; flex-direction:column; gap:1rem; }
+    .panel { background:var(--card); border-radius:.8rem;
+             box-shadow:0 1px 4px rgba(0,0,0,.07); overflow:hidden; }
+    .panel-head { padding:.65rem 1rem; font-weight:700; font-size:.88rem;
+                  border-bottom:1px solid var(--border); display:flex;
+                  align-items:center; justify-content:space-between; }
+    .panel-body { padding:.75rem; max-height:320px; overflow-y:auto; }
+
+    /* Queue items */
+    .q-item { background:var(--blight); border:1px solid var(--bmed); border-radius:.5rem;
+              padding:.6rem .75rem; margin-bottom:.5rem;
+              display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
+    .q-item .info { font-size:.82rem; line-height:1.5; }
+    .q-item .info strong { font-size:.88rem; }
+    .q-item .info .when { color:var(--gray); font-size:.73rem; margin-top:2px; }
+    .q-remove { border:none; background:none; cursor:pointer; color:var(--red);
+                font-size:1.1rem; padding:.1rem .25rem; border-radius:.25rem; flex-shrink:0; }
+    .q-empty { color:var(--gray); font-size:.82rem; text-align:center;
+               padding:1rem 0; line-height:1.6; }
+
+    /* Schedule button */
+    .schedule-btn { width:100%; padding:.75rem; border-radius:.5rem; border:none;
+                    background:var(--green); color:#fff; font-size:1rem; font-weight:700;
+                    cursor:pointer; transition:background .15s; margin-top:.25rem; }
+    .schedule-btn:hover:not(:disabled) { background:#15803d; }
+    .schedule-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* Status items */
+    .status-item { padding:.6rem .75rem; border-radius:.5rem; margin-bottom:.5rem;
+                   font-size:.8rem; line-height:1.5; border:1px solid transparent; }
+    .status-item .s-title  { font-weight:700; font-size:.85rem; }
+    .status-item .s-detail { color:var(--gray); font-size:.74rem; margin-top:1px; }
+    .status-item .s-msg    { font-size:.74rem; margin-top:3px; }
+    .s-pending { background:#f8fafc; border-color:var(--border); }
+    .s-success { background:#f0fdf4; border-color:#bbf7d0; }
+    .s-failed  { background:#fef2f2; border-color:#fecaca; }
+    .s-running { background:#fffbeb; border-color:#fde68a; }
+    .badge { display:inline-block; padding:.1rem .45rem; border-radius:9999px;
+             font-size:.65rem; font-weight:700; text-transform:uppercase; }
+    .badge-pending { background:#e2e8f0; color:#475569; }
+    .badge-success { background:#dcfce7; color:#15803d; }
+    .badge-failed  { background:#fee2e2; color:#b91c1c; }
+    .badge-running { background:#fef3c7; color:#92400e; }
+    .del-btn { float:right; border:none; background:none; cursor:pointer;
+               color:var(--gray); font-size:.85rem; padding:.1rem .25rem;
+               border-radius:.25rem; }
+    .del-btn:hover { color:var(--red); }
+
+    /* Clock */
+    .clock { font-size:.75rem; color:var(--gray); margin-bottom:.75rem; }
+
+    /* Spinner */
+    @keyframes spin { to{transform:rotate(360deg);} }
+    .spin { display:inline-block; width:.9rem; height:.9rem; border:2px solid #bfdbfe;
+            border-top-color:var(--blue); border-radius:50%;
+            animation:spin .7s linear infinite; vertical-align:middle; margin-right:.3rem; }
+
+    /* Toast */
+    #toast { position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%) translateY(100px);
+             background:#1e293b; color:#fff; padding:.6rem 1.2rem; border-radius:.5rem;
+             font-size:.85rem; box-shadow:0 4px 16px rgba(0,0,0,.25);
+             transition:transform .3s; z-index:999; pointer-events:none; }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+
+    /* Settings link */
+    .settings-link { font-size:.73rem; color:var(--gray); cursor:pointer;
+                     text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:1.8rem">🎾</div>
+  <div style="flex:1">
+    <h1>JIS Tennis Court Booking</h1>
+    <p>Select slots → Schedule → Done. Bookings happen automatically in the cloud.</p>
+  </div>
+  <span class="settings-link" onclick="showSetup()">⚙ Settings</span>
+</header>
+
+<!-- ── SETUP SCREEN ──────────────────────────────────────────────────── -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <h2>🔧 Connect to GitHub</h2>
+    <p>
+      This site saves your booking schedule to GitHub, where it runs automatically.
+      You only need to fill this in once — it's saved in your browser.
+    </p>
+
+    <div class="field">
+      <label>GitHub Username</label>
+      <input id="ghUser" placeholder="e.g. hanchoo" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Repository Name</label>
+      <input id="ghRepo" placeholder="tennis-booking" value="tennis-booking" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>
+        Personal Access Token &nbsp;
+        <a class="help-link" href="https://github.com/settings/tokens/new?description=Tennis+Booking&scopes=repo" target="_blank">
+          Create one here ↗
+        </a>
+      </label>
+      <input id="ghToken" type="password" placeholder="github_pat_..." autocomplete="off">
+    </div>
+
+    <button class="primary-btn" onclick="saveSetup()">Save & Continue</button>
+
+    <p style="margin-top:1rem;font-size:.75rem;color:var(--gray)">
+      Your token is stored only in this browser — it never leaves your device.
+    </p>
+  </div>
+</div>
+
+<!-- ── MAIN SCREEN ───────────────────────────────────────────────────── -->
+<div id="mainScreen">
+  <div class="layout">
+
+    <!-- Left: Calendar -->
+    <div>
+      <div class="clock" id="clock"></div>
+      <div class="week-tabs" id="weekTabs"></div>
+      <div id="calGrid"></div>
+    </div>
+
+    <!-- Right: Queue + Status -->
+    <div class="right">
+
+      <div class="panel">
+        <div class="panel-head">
+          📋 Queue
+          <span id="qCount" style="background:var(--blue);color:#fff;border-radius:9999px;
+                padding:.1rem .55rem;font-size:.75rem;font-weight:700;">0</span>
+        </div>
+        <div class="panel-body" id="queueList">
+          <div class="q-empty">Click <strong>Select</strong> on any slot.<br>
+            You can pick multiple courts and times.</div>
+        </div>
+        <div style="padding:.75rem;border-top:1px solid var(--border);">
+          <button class="schedule-btn" id="scheduleBtn" disabled onclick="scheduleAll()">
+            Schedule All Bookings
+          </button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          📅 Scheduled
+          <button onclick="loadStatus()" title="Refresh"
+            style="border:none;background:none;cursor:pointer;font-size:.9rem;color:var(--gray);">↺</button>
+        </div>
+        <div class="panel-body" id="statusList">
+          <div class="q-empty">Loading…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── GitHub config ──────────────────────────────────────────
+function cfg()    { return JSON.parse(localStorage.getItem('ghCfg') || '{}'); }
+function saveCfg(o){ localStorage.setItem('ghCfg', JSON.stringify(o)); }
+
+function showSetup() {
+  const c = cfg();
+  document.getElementById('ghUser').value  = c.user  || '';
+  document.getElementById('ghRepo').value  = c.repo  || 'tennis-booking';
+  document.getElementById('ghToken').value = c.token || '';
+  document.getElementById('setupScreen').style.display = 'block';
+  document.getElementById('mainScreen').style.display  = 'none';
+}
+
+function saveSetup() {
+  const user  = document.getElementById('ghUser').value.trim();
+  const repo  = document.getElementById('ghRepo').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  if (!user || !token) { alert('Please fill in all fields.'); return; }
+  saveCfg({ user, repo, token });
+  showMain();
+}
+
+function showMain() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display  = 'block';
+  renderTabs(); renderCal(); renderQueue(); loadStatus();
+}
+
+// ── GitHub API helpers ─────────────────────────────────────
+async function ghGet(path) {
+  const { user, repo, token } = cfg();
+  const r = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${path}`, {
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!r.ok) throw new Error(`GitHub error ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function ghPut(path, content, message, sha) {
+  const { user, repo, token } = cfg();
+  const r = await fetch(`https://api.github.com/repos/${user}/${repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json',
+               'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+  });
+  if (!r.ok) throw new Error(`GitHub error ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function readSchedule() {
+  const file = await ghGet('schedule.json');
+  return { data: JSON.parse(decodeURIComponent(escape(atob(file.content)))), sha: file.sha };
+}
+
+async function writeSchedule(data, sha) {
+  await ghPut('schedule.json', JSON.stringify(data, null, 2),
+              'Update booking schedule', sha);
+}
+
+async function triggerWorkflowNow() {
+  const { user, repo, token } = cfg();
+  const r = await fetch(
+    `https://api.github.com/repos/${user}/${repo}/actions/workflows/book.yml/dispatches`,
+    {
+      method: 'POST',
+      headers: { Authorization: `token ${token}`,
+                 Accept: 'application/vnd.github.v3+json',
+                 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: 'main' })
+    }
+  );
+  if (!r.ok) throw new Error(`Could not trigger workflow: ${r.status}`);
+}
+
+// ── Date / slot helpers ────────────────────────────────────
+const DOW   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MSHRT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAY_H = [6,7,8,9,10,11];
+const WEEKEND_H = [8,9,10,11,12,13,14,15,16,17];
+const ALLOWED   = new Set([0,1,3,5,6]);
+
+function fmt12(h) {
+  return `${h===0?12:h>12?h-12:h}:00 ${h<12?'AM':'PM'}`;
+}
+function toDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function toTimeStr(h) { return `${String(h).padStart(2,'0')}:00`; }
+function getHours(dow) {
+  if ([1,3,5].includes(dow)) return WEEKDAY_H;
+  if ([0,6].includes(dow))   return WEEKEND_H;
+  return [];
+}
+function getWeekDates(offset=0) {
+  const t=new Date(); t.setHours(0,0,0,0);
+  const dfm=t.getDay()===0?6:t.getDay()-1;
+  const mon=new Date(t); mon.setDate(t.getDate()-dfm+offset*7);
+  const out=[];
+  for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);if(ALLOWED.has(d.getDay()))out.push(d);}
+  return out;
+}
+function weekRange(off) {
+  const d=getWeekDates(off); if(!d.length)return '';
+  return `${MSHRT[d[0].getMonth()]} ${d[0].getDate()} – ${MSHRT[d[d.length-1].getMonth()]} ${d[d.length-1].getDate()}`;
+}
+function isPast(date,hour) {
+  const now=new Date(),e=new Date(date); e.setHours(hour+1,0,0,0); return e<now;
+}
+function computeRunAt(dateStr) {
+  const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()-3); d.setHours(0,0,0,0); return d;
+}
+function fmtRunAt(dateStr) {
+  const r=computeRunAt(dateStr);
+  return `${DOW[r.getDay()]} ${MSHRT[r.getMonth()]} ${r.getDate()} at 00:00`;
+}
+function slotKey(court,date,time){ return `${court}|${date}|${time}`; }
+
+// ── Queue ──────────────────────────────────────────────────
+let currentWeek = 0;
+const queue = new Map();
+let scheduledSlotKeys = new Set(); // keys already scheduled (any non-failed status)
+
+function toggleSlot(court,date,time,btn) {
+  const k=slotKey(court,date,time);
+  if(queue.has(k)){ queue.delete(k); btn.classList.remove('picked'); btn.textContent='Select'; }
+  else            { queue.set(k,{court,date,time}); btn.classList.add('picked'); btn.textContent='Selected'; }
+  renderQueue();
+}
+function removeFromQueue(k) {
+  queue.delete(k);
+  document.querySelectorAll(`.sel-btn[data-k="${k}"]`).forEach(b=>{
+    b.classList.remove('picked'); b.textContent='Select';
+  });
+  renderQueue();
+}
+function renderQueue() {
+  const list=document.getElementById('queueList');
+  const count=document.getElementById('qCount');
+  const btn=document.getElementById('scheduleBtn');
+  count.textContent=queue.size;
+  btn.disabled=queue.size===0;
+  if(!queue.size){
+    list.innerHTML='<div class="q-empty">Click <strong>Select</strong> on any slot.<br>You can pick multiple courts and times.</div>';
+    return;
+  }
+  list.innerHTML='';
+  for(const [k,v] of queue){
+    const d=new Date(v.date+'T00:00:00');
+    const div=document.createElement('div'); div.className='q-item';
+    div.innerHTML=`
+      <div class="info">
+        <strong>Court ${v.court}</strong><br>
+        ${DOW[d.getDay()]}, ${MSHRT[d.getMonth()]} ${d.getDate()}<br>
+        ${fmt12(parseInt(v.time.split(':')[0]))}<br>
+        <span class="when">${computeRunAt(v.date)<=new Date()
+          ? '🚀 Within 72-hour window — books immediately'
+          : '⏰ Auto-books: '+fmtRunAt(v.date)}</span>
+      </div>
+      <button class="q-remove" onclick="removeFromQueue('${k}')">✕</button>`;
+    list.appendChild(div);
+  }
+}
+
+// ── Schedule All ───────────────────────────────────────────
+async function scheduleAll() {
+  if(!queue.size) return;
+  const btn=document.getElementById('scheduleBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Saving…';
+
+  try {
+    const { data: existing, sha } = await readSchedule();
+
+    const newItems=[];
+    const skipped=[];
+    for(const [k,v] of queue){
+      const dup=existing.some(b=>b.court===v.court&&b.date===v.date&&b.time===v.time&&b.status!=='failed');
+      if(dup){ skipped.push(k); continue; }
+      const runAt=computeRunAt(v.date);
+      const alreadyDue=runAt<=new Date();
+      newItems.push({
+        id: Math.random().toString(36).slice(2,10),
+        court: parseInt(v.court),
+        date: v.date,
+        time: v.time,
+        run_at: runAt.toISOString(),
+        status: alreadyDue ? 'queued' : 'pending',
+        message: '',
+        created_at: new Date().toISOString(),
+        completed_at: null,
+      });
+    }
+
+    if(!newItems.length){
+      toast(skipped.length ? '⚠️ All selected slots were already scheduled.' : 'Nothing to add.', 3500);
+      return;
+    }
+
+    await writeSchedule([...existing, ...newItems], sha);
+
+    const immediateCount = newItems.filter(b=>b.status==='queued').length;
+    const laterCount     = newItems.filter(b=>b.status==='pending').length;
+
+    // Trigger GitHub Actions right now for any slots already in the booking window
+    if(immediateCount > 0) {
+      btn.innerHTML='<span class="spin"></span> Triggering booking now…';
+      try {
+        await triggerWorkflowNow();
+        const immMsg = `🚀 ${immediateCount} slot${immediateCount>1?'s are':' is'} within the 72-hour window — booking now in the cloud!`;
+        const latMsg = laterCount>0 ? ` ${laterCount} more scheduled for later.` : '';
+        toast(immMsg+latMsg, 7000);
+      } catch(e) {
+        toast(`⚠️ Saved, but could not auto-trigger: ${e.message}. It will run at next midnight.`, 6000);
+      }
+    } else {
+      toast(`✅ ${laterCount} booking${laterCount>1?'s':''} scheduled! You can close this page now.`, 6000);
+    }
+
+    queue.clear();
+    document.querySelectorAll('.sel-btn.picked').forEach(b=>{ b.classList.remove('picked'); b.textContent='Select'; });
+    renderQueue();
+    await loadStatus();
+
+  } catch(e) {
+    toast('❌ Error: ' + e.message, 5000);
+  } finally {
+    btn.disabled=false; btn.textContent='Schedule All Bookings';
+    if(queue.size) btn.disabled=false;
+  }
+}
+
+// ── Status Board ───────────────────────────────────────────
+const STATUS_ICON  = { pending:'⏰', queued:'🔵', running:'⚙️', success:'✅', failed:'❌' };
+const STATUS_LABEL = { pending:'Pending', queued:'Queued', running:'Running…', success:'Booked ✓', failed:'Failed' };
+
+async function loadStatus() {
+  const list=document.getElementById('statusList');
+  try {
+    const { data } = await readSchedule();
+    scheduledSlotKeys = new Set(
+      data.filter(b=>b.status!=='failed').map(b=>slotKey(b.court,b.date,b.time))
+    );
+    // Refresh calendar buttons to reflect already-scheduled slots
+    document.querySelectorAll('.sel-btn[data-k]').forEach(b=>{
+      const k=b.dataset.k;
+      if(scheduledSlotKeys.has(k)&&!queue.has(k)){
+        b.textContent='Scheduled'; b.className='sel-btn done'; b.disabled=true;
+      }
+    });
+
+    if(!data.length){ list.innerHTML='<div class="q-empty">No bookings scheduled yet.</div>'; return; }
+    const sorted=[...data].reverse();
+    list.innerHTML='';
+    for(const b of sorted){
+      const d=new Date(b.date+'T00:00:00');
+      const runAt=new Date(b.run_at);
+      const div=document.createElement('div'); div.className=`status-item s-${b.status}`;
+      div.innerHTML=`
+        ${b.status==='pending'?`<button class="del-btn" title="Cancel" onclick="cancelBooking('${b.id}')">✕</button>`:''}
+        <span class="badge badge-${b.status}">${STATUS_LABEL[b.status]||b.status}</span>
+        <div class="s-title" style="margin-top:.3rem">
+          ${STATUS_ICON[b.status]||''} Court ${b.court} · ${fmt12(parseInt(b.time.split(':')[0]))}
+        </div>
+        <div class="s-detail">
+          ${DOW[d.getDay()]}, ${MSHRT[d.getMonth()]} ${d.getDate()}, ${b.date.split('-')[0]}
+          ${b.status==='pending'?`· Books: ${DOW[runAt.getDay()]} ${MSHRT[runAt.getMonth()]} ${runAt.getDate()} 00:00`:''}
+        </div>
+        ${b.message?`<div class="s-msg" style="color:${b.status==='failed'?'var(--red)':'var(--green)'}">${b.message}</div>`:''}`;
+      list.appendChild(div);
+    }
+  } catch(e) {
+    list.innerHTML=`<div class="q-empty" style="color:var(--red)">Cannot load schedule: ${e.message}</div>`;
+  }
+}
+
+async function cancelBooking(id) {
+  if(!confirm('Cancel this scheduled booking?')) return;
+  try {
+    const { data, sha } = await readSchedule();
+    const idx = data.findIndex(b=>b.id===id);
+    if(idx!==-1){ data[idx].status='cancelled'; data[idx].message='Cancelled by user.'; }
+    await writeSchedule(data, sha);
+    await loadStatus(); toast('Booking cancelled.', 2500);
+  } catch(e){ toast('Error: '+e.message, 4000); }
+}
+
+// ── Calendar ───────────────────────────────────────────────
+function renderTabs() {
+  const el=document.getElementById('weekTabs'); el.innerHTML='';
+  ['This Week','Next Week','Week After'].forEach((lbl,i)=>{
+    const b=document.createElement('button');
+    b.className='week-tab'+(i===currentWeek?' active':'');
+    b.textContent=`${lbl}  (${weekRange(i)})`;
+    b.onclick=()=>{ currentWeek=i; renderTabs(); renderCal(); };
+    el.appendChild(b);
+  });
+}
+
+function renderCal() {
+  const grid=document.getElementById('calGrid'); grid.innerHTML='';
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(const date of getWeekDates(currentWeek)){
+    const hours=getHours(date.getDay()); if(!hours.length) continue;
+    const isToday=date.getTime()===today.getTime(), pastDay=date<today;
+    const card=document.createElement('div'); card.className='day-card';
+    const head=document.createElement('div');
+    head.className='day-head'+(isToday?' today':'');
+    head.innerHTML=`${DOW[date.getDay()]}
+      <span class="sub">${MSHRT[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}${isToday?' — Today':''}</span>`;
+    card.appendChild(head);
+    const tbl=document.createElement('table');
+    tbl.innerHTML=`<thead><tr><th>Time</th><th>Court 1</th><th>Court 2</th><th>Court 3</th></tr></thead>`;
+    const tbody=document.createElement('tbody');
+    hours.forEach(hour=>{
+      const past=pastDay||isPast(date,hour);
+      const tr=document.createElement('tr'); if(past) tr.className='past';
+      const tdT=document.createElement('td'); tdT.textContent=fmt12(hour); tr.appendChild(tdT);
+      [1,2,3].forEach(court=>{
+        const k=slotKey(court,toDateStr(date),toTimeStr(hour));
+        const td=document.createElement('td');
+        const btn=document.createElement('button');
+        const alreadyScheduled=scheduledSlotKeys.has(k);
+        btn.dataset.k=k;
+        if(alreadyScheduled){
+          btn.className='sel-btn done'; btn.textContent='Scheduled'; btn.disabled=true;
+        } else if(queue.has(k)){
+          btn.className='sel-btn picked'; btn.textContent='Selected';
+          btn.onclick=()=>toggleSlot(court,toDateStr(date),toTimeStr(hour),btn);
+        } else {
+          btn.className='sel-btn'; btn.textContent='Select';
+          btn.disabled=past;
+          btn.onclick=()=>toggleSlot(court,toDateStr(date),toTimeStr(hour),btn);
+        }
+        td.appendChild(btn); tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody); card.appendChild(tbl); grid.appendChild(card);
+  }
+}
+
+// ── Clock ──────────────────────────────────────────────────
+function updateClock(){
+  document.getElementById('clock').textContent='Current time: '+
+    new Date().toLocaleString('en-US',{weekday:'long',year:'numeric',
+      month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── Toast ──────────────────────────────────────────────────
+let _tt;
+function toast(msg,ms=3000){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),ms);
+}
+
+// ── Init ───────────────────────────────────────────────────
+const c=cfg();
+if(c.user && c.token){ showMain(); }
+else { showSetup(); }
+
+updateClock(); setInterval(updateClock,1000);
+setInterval(loadStatus,30000);
+</script>
+</body>
+</html>
