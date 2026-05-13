@@ -5,10 +5,8 @@
     "date": "2026-05-15",
     "time": "06:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "failed",
-    "created_at": "2026-05-13T09:56:17.224Z",
-    "message": "\"6:00am\" (6:00am WIB) not found on May 15. Visible slots: ['7:00pm', '8:00pm', '11:00pm']",
-    "completed_at": "2026-05-13T22:33:29.100876"
+    "status": "queued",
+    "created_at": "2026-05-13T09:56:17.224Z"
   },
   {
     "id": "3nyc0qjq",
@@ -16,9 +14,7 @@
     "date": "2026-05-15",
     "time": "07:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "failed",
-    "created_at": "2026-05-13T10:18:23.196Z",
-    "message": "\"7:00am\" (7:00am WIB) not found on May 15. Visible slots: ['7:00pm', '8:00pm', '11:00pm']",
-    "completed_at": "2026-05-13T22:33:52.233327"
+    "status": "queued",
+    "created_at": "2026-05-13T10:18:23.196Z"
   }
 ]

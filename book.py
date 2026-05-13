@@ -116,12 +116,26 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         driver.get(COURT_URLS[court_num])
         time.sleep(5)
 
-        # ── Detect page timezone and convert our WIB time ─────────────────
-        page_tz_offset = driver.execute_script("return new Date().getTimezoneOffset();")
-        page_tz_name   = driver.execute_script(
-            "return Intl.DateTimeFormat().resolvedOptions().timeZone;"
-        )
-        print(f"  Page timezone: {page_tz_name} (offset {page_tz_offset} min west of UTC)")
+        # ── Detect page timezone from the displayed "(GMT±HH:MM)" text ──────
+        # getTimezoneOffset() is unreliable because TZ=Asia/Jakarta in the
+        # workflow env forces it to -420 regardless of what Google shows.
+        # Instead, parse the offset from the text Google renders on the page.
+        tz_str = driver.execute_script("""
+            var m = document.body.innerText.match(/\\(GMT([+-]\\d+:\\d+)\\)/);
+            return m ? m[1] : null;
+        """)
+        if tz_str:
+            sign   = 1 if tz_str[0] == '+' else -1
+            parts  = tz_str[1:].split(':')
+            h_val  = int(parts[0])
+            m_val  = int(parts[1]) if len(parts) > 1 else 0
+            # GMT+07:00 → UTC+7 → offset = -420 (east of UTC = negative west)
+            # GMT-04:00 → UTC-4 → offset = +240 (west of UTC = positive)
+            page_tz_offset = -(sign * (h_val * 60 + m_val))
+            print(f"  Page shows GMT{tz_str} → offset={page_tz_offset} min west of UTC")
+        else:
+            page_tz_offset = driver.execute_script("return new Date().getTimezoneOffset();")
+            print(f"  GMT string not found on page; fallback getTimezoneOffset={page_tz_offset}")
 
         ph, pm, day_delta = wib_to_page_time(hour, minute, page_tz_offset)
         display_time_page = fmt_display(ph, pm)
