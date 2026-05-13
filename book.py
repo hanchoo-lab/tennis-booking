@@ -93,11 +93,9 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         # Navigate mini calendar to correct month
         for _ in range(18):
             header = driver.execute_script("""
-                    var re=/^(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}$/;
-                for(var el of document.querySelectorAll('h2,h3,[role="heading"]')){
-                    var t=(el.textContent||'').trim();
-                    if(re.test(t))return t;
-                }return null;
+                var re=/(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}/;
+                var match=document.body.innerText.match(re);
+                return match?match[0].trim():null;
             """)
             print(f"  Calendar: {header}")
             if header and target_month in header and str(year) in header:
@@ -105,9 +103,13 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             clicked = driver.execute_script("""
                 for(var b of document.querySelectorAll('button')){
                     var l=(b.getAttribute('aria-label')||'').toLowerCase();
+                    if(l.includes('next month')&&!b.disabled){b.click();return true;}
+                }
+                for(var b of document.querySelectorAll('button')){
                     var t=b.textContent.trim();
-                    if((l.includes('next')||t==='>'||t==='›')&&!b.disabled){b.click();return true;}
-                }return false;
+                    if((t==='›'||t==='>')&&!b.disabled){b.click();return true;}
+                }
+                return false;
             """)
             if not clicked:
                 raise RuntimeError("Cannot navigate calendar")
