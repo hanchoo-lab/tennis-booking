@@ -32,6 +32,32 @@ def fmt_display(hour: int, minute: int = 0) -> str:
     h    = 12 if hour == 0 else (hour - 12 if hour > 12 else hour)
     return f"{h}:{'00' if minute == 0 else str(minute).zfill(2)}{ampm}"
 
+def wib_to_page_time(hour: int, minute: int, page_tz_offset_min: int):
+    """
+    Convert a WIB (UTC+7) time to whatever timezone the booking page shows.
+
+    page_tz_offset_min  = JS getTimezoneOffset() value
+                        = minutes WEST of UTC  (positive for Americas)
+                        e.g. EDT = 240, MST/PDT = 420, UTC = 0, WIB = -420
+
+    Returns (page_hour, page_minute, day_delta)
+    day_delta = -1 means the slot appears on the calendar day BEFORE
+    the WIB target date (common for Americas timezones).
+    """
+    wib_min  = hour * 60 + minute
+    utc_min  = wib_min - 7 * 60          # WIB → UTC  (subtract +7)
+    page_min = utc_min - page_tz_offset_min  # UTC → page local
+
+    day_delta = 0
+    while page_min < 0:
+        page_min  += 24 * 60
+        day_delta -= 1
+    while page_min >= 24 * 60:
+        page_min  -= 24 * 60
+        day_delta += 1
+
+    return page_min // 60, page_min % 60, day_delta
+
 def react_set(driver, el, value: str):
     driver.execute_script("""
         var el=arguments[0],v=arguments[1];
@@ -70,10 +96,10 @@ def find_input_by_label(driver, label_text: str):
 def book_court(court_num: int, date_str: str, time_str: str) -> str:
     year, month, day = map(int, date_str.split("-"))
     hour, minute     = map(int, time_str.split(":"))
-    display_time     = fmt_display(hour, minute)
+    display_time_wib = fmt_display(hour, minute)   # e.g. "6:00am" (WIB)
     target_month     = MONTHS[month - 1]
 
-    print(f"\n>>> Booking Court {court_num} | {date_str} | {display_time}")
+    print(f"\n>>> Booking Court {court_num} | {date_str} | {display_time_wib} WIB")
 
     opts = Options()
     opts.add_argument("--headless=new")
@@ -86,53 +112,61 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
     wait   = WebDriverWait(driver, 15)
 
     try:
-        # ── CRITICAL: set Jakarta timezone BEFORE loading the page ────────
-        # The booking page bakes in the timezone on first load.
-        # Setting it after a refresh does not work reliably.
+        # Try CDP timezone override before loading (best effort; not required)
         try:
             driver.execute_cdp_cmd("Emulation.setTimezoneOverride",
                                    {"timezoneId": "Asia/Jakarta"})
-            print("  Timezone pre-set to Asia/Jakarta")
+            print("  CDP: timezone pre-set to Asia/Jakarta")
         except Exception as e:
-            print(f"  Warning: timezone CDP failed: {e}")
+            print(f"  CDP timezone skipped: {e}")
 
         print("  Loading booking page...")
         driver.get(COURT_URLS[court_num])
         time.sleep(5)
 
-        # Verify timezone
-        tz = driver.execute_script(
+        # ── Detect page timezone and convert our WIB time ─────────────────
+        page_tz_offset = driver.execute_script("return new Date().getTimezoneOffset();")
+        page_tz_name   = driver.execute_script(
             "return Intl.DateTimeFormat().resolvedOptions().timeZone;"
         )
-        print(f"  Browser timezone: {tz}")
+        print(f"  Page timezone: {page_tz_name} (offset {page_tz_offset} min west of UTC)")
 
-        # ── Full diagnostic dump ───────────────────────────────────────────
-        print("  === All time-related buttons on page ===")
-        time_btns = driver.execute_script("""
-            var out = [];
-            for (var b of document.querySelectorAll('button,[role="button"]')) {
-                var lbl = b.getAttribute('aria-label') || '';
-                var txt = b.textContent.trim().replace(/\s+/g,' ');
-                var dis = b.disabled || b.getAttribute('aria-disabled') === 'true';
-                if (/\d+:\d+\s*(am|pm)/i.test(lbl) || /\d+:\d+\s*(am|pm)/i.test(txt)) {
-                    out.push({ lbl: lbl.substring(0,120), txt: txt.substring(0,60), dis: dis });
+        ph, pm, day_delta = wib_to_page_time(hour, minute, page_tz_offset)
+        display_time_page = fmt_display(ph, pm)
+        page_date         = date(year, month, day) + timedelta(days=day_delta)
+        page_day_num      = str(page_date.day)
+        page_month_name   = MONTHS[page_date.month - 1]
+
+        print(f"  WIB {display_time_wib} on {date_str}  →  "
+              f"page shows '{display_time_page}' on {page_date} "
+              f"(day_delta={day_delta})")
+
+        # ── Dump all time-related buttons for diagnosis ───────────────────
+        def dump_time_buttons(label=""):
+            btns = driver.execute_script("""
+                var out = [];
+                for (var b of document.querySelectorAll('button,[role="button"]')) {
+                    var lbl = b.getAttribute('aria-label') || '';
+                    var txt = b.textContent.trim().replace(/\s+/g,' ');
+                    var dis = b.disabled || b.getAttribute('aria-disabled') === 'true';
+                    if (/\d+:\d+\s*(am|pm)/i.test(lbl+txt))
+                        out.push({lbl:lbl.substring(0,120), txt:txt.substring(0,60), dis:dis});
                 }
-            }
-            return out;
-        """)
-        for tb in time_btns:
-            flag = " [DISABLED]" if tb['dis'] else ""
-            print(f"    aria={tb['lbl']!r}  txt={tb['txt']!r}{flag}")
-        print(f"  ({len(time_btns)} time buttons total)")
+                return out;
+            """)
+            print(f"  Time buttons{' '+label if label else ''} ({len(btns)}):")
+            for b in btns:
+                flag = " [DIS]" if b['dis'] else ""
+                print(f"    txt={b['txt']!r}  aria={b['lbl']!r}{flag}")
+            return btns
 
-        # ── Step 1: Navigate to the correct week ──────────────────────────
-        # The week view starts from today and shows 7 consecutive days.
-        # Advance one "next week" per full 7 days between today and target.
-        target_dt   = date(year, month, day)
+        dump_time_buttons("on load")
+
+        # ── Step 1: Navigate to the week containing page_date ─────────────
         today_dt    = date.today()
-        days_ahead  = (target_dt - today_dt).days
+        days_ahead  = (page_date - today_dt).days
         weeks_ahead = max(0, days_ahead // 7)
-        print(f"  Today={today_dt} Target={target_dt} days_ahead={days_ahead} weeks_ahead={weeks_ahead}")
+        print(f"  Navigating {weeks_ahead} week(s) forward (today={today_dt}, page_date={page_date})")
 
         for w in range(weeks_ahead):
             clicked = driver.execute_script("""
@@ -152,93 +186,85 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             """)
             if not clicked:
                 raise RuntimeError(f"Cannot advance to week {w+1}/{weeks_ahead}")
-            print(f"  Week advance {w+1}/{weeks_ahead}: {clicked}")
+            print(f"  Week {w+1}/{weeks_ahead}: {clicked}")
             time.sleep(1.2)
 
         if weeks_ahead > 0:
             time.sleep(1.5)
-            # Re-dump time buttons after navigation
-            print("  === Time buttons after navigation ===")
-            time_btns = driver.execute_script("""
-                var out = [];
-                for (var b of document.querySelectorAll('button,[role="button"]')) {
-                    var lbl = b.getAttribute('aria-label') || '';
-                    var txt = b.textContent.trim().replace(/\s+/g,' ');
-                    var dis = b.disabled || b.getAttribute('aria-disabled') === 'true';
-                    if (/\d+:\d+\s*(am|pm)/i.test(lbl) || /\d+:\d+\s*(am|pm)/i.test(txt)) {
-                        out.push({ lbl: lbl.substring(0,120), txt: txt.substring(0,60), dis: dis });
-                    }
-                }
-                return out;
-            """)
-            for tb in time_btns:
-                flag = " [DISABLED]" if tb['dis'] else ""
-                print(f"    aria={tb['lbl']!r}  txt={tb['txt']!r}{flag}")
+            dump_time_buttons("after navigation")
 
         # ── Step 2: Click the time slot ───────────────────────────────────
-        # With the Jakarta timezone in effect, time slot buttons will show
-        # WIB times (e.g. "6:00am").  We search by:
-        #  1. aria-label containing both the target date AND time (most precise)
-        #  2. aria-label containing the time only
-        #  3. text content matching exactly (last resort)
-        print(f"  Searching for slot: {display_time} on {target_month} {day}, {year}")
+        # Search strategy (in order):
+        #   A. aria-label contains BOTH page_date info AND time
+        #   B. aria-label contains time only
+        #   C. button text matches exactly
+        print(f"  Clicking: '{display_time_page}' on {page_month_name} {page_day_num} "
+              f"(= {display_time_wib} WIB on {date_str})")
 
         found_time = False
         for attempt in range(20):
             result = driver.execute_script("""
-                var targetDate  = arguments[0];   // e.g. "May 15"
-                var targetDay   = arguments[1];   // e.g. "15"
-                var targetTime  = arguments[2];   // e.g. "6:00am"
+                var dMonth  = arguments[0];   // "May"
+                var dDay    = arguments[1];   // "14"
+                var dYear   = arguments[2];   // "2026"
+                var dTime   = arguments[3];   // "7:00pm"
                 var sel = 'button,[role="button"]';
 
-                function notDisabled(b) {
+                function ok(b) {
                     return !b.disabled && b.getAttribute('aria-disabled') !== 'true';
                 }
-
-                // Pass 1: aria-label has date fragment + time fragment
-                for (var b of document.querySelectorAll(sel)) {
-                    if (!notDisabled(b)) continue;
-                    var lbl = (b.getAttribute('aria-label') || '').toLowerCase();
-                    var hasDate = lbl.includes(targetDate.toLowerCase()) ||
-                                  lbl.includes(targetDay + ',') ||
-                                  lbl.includes(targetDay + ' ');
-                    var hasTime = lbl.includes(targetTime.toLowerCase()) ||
-                                  lbl.replace(/\s/g,'').includes(targetTime.replace(/\s/g,'').toLowerCase());
-                    if (hasDate && hasTime) { b.click(); return 'date+time:' + lbl.substring(0,80); }
+                function hasTime(s) {
+                    s = s.toLowerCase().replace(/\s/g,'');
+                    return s.includes(dTime.toLowerCase().replace(/\s/g,''));
+                }
+                function hasDate(s) {
+                    var sl = s.toLowerCase();
+                    return (sl.includes(dMonth.toLowerCase()) && sl.includes(dDay)) ||
+                           sl.includes(dDay + ',' + dYear) ||
+                           sl.includes(dDay + ' ' + dYear);
                 }
 
-                // Pass 2: aria-label has time only
+                // Pass A: date + time in aria-label
                 for (var b of document.querySelectorAll(sel)) {
-                    if (!notDisabled(b)) continue;
-                    var lbl = (b.getAttribute('aria-label') || '').toLowerCase();
-                    var hasTime = lbl.includes(targetTime.toLowerCase()) ||
-                                  lbl.replace(/\s/g,'').includes(targetTime.replace(/\s/g,'').toLowerCase());
-                    if (hasTime) { b.click(); return 'time-only-lbl:' + lbl.substring(0,80); }
-                }
-
-                // Pass 3: text content matches exactly
-                for (var b of document.querySelectorAll(sel)) {
-                    if (!notDisabled(b)) continue;
-                    if (b.textContent.trim().toLowerCase() === targetTime.toLowerCase()) {
-                        b.click(); return 'text-exact';
+                    if (!ok(b)) continue;
+                    var lbl = b.getAttribute('aria-label') || '';
+                    if (hasDate(lbl) && hasTime(lbl)) {
+                        b.click(); return 'A:' + lbl.substring(0,80);
                     }
                 }
-
+                // Pass B: time in aria-label only
+                for (var b of document.querySelectorAll(sel)) {
+                    if (!ok(b)) continue;
+                    var lbl = b.getAttribute('aria-label') || '';
+                    if (hasTime(lbl) && lbl.length > 2) {
+                        b.click(); return 'B:' + lbl.substring(0,80);
+                    }
+                }
+                // Pass C: exact text match
+                for (var b of document.querySelectorAll(sel)) {
+                    if (!ok(b)) continue;
+                    if (b.textContent.trim().toLowerCase() ===
+                        dTime.toLowerCase()) {
+                        b.click(); return 'C:text';
+                    }
+                }
                 return null;
-            """, f"{target_month} {day}", str(day), display_time)
+            """, page_month_name, page_day_num, str(page_date.year), display_time_page)
 
             if result:
                 found_time = True
-                print(f"  Clicked time slot ({result})")
+                print(f"  Clicked time slot (attempt {attempt+1}): {result}")
                 break
             time.sleep(0.8)
 
         if not found_time:
-            visible = [f"{tb['lbl'] or tb['txt']}" for tb in time_btns]
+            tb = dump_time_buttons("at failure")
+            visible = [b['txt'] or b['lbl'] for b in tb]
             driver.save_screenshot("screenshot_debug.png")
             raise RuntimeError(
-                f'"{display_time}" not found for {target_month} {day}, {year}. '
-                f"Visible time buttons: {visible}"
+                f'"{display_time_page}" ({display_time_wib} WIB) not found '
+                f"on {page_month_name} {page_day_num}. "
+                f"Visible slots: {visible}"
             )
 
         time.sleep(2.5)
@@ -262,7 +288,8 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         if ln:    react_set(driver, ln,    "Singles")
         if email: react_set(driver, email, BOOKING_EMAIL)
         if jis:   react_set(driver, jis,   "C")
-        print(f"  Form filled (fn={bool(fn)}, ln={bool(ln)}, email={bool(email)}, jis={bool(jis)})")
+        print(f"  Form filled (fn={bool(fn)}, ln={bool(ln)}, "
+              f"email={bool(email)}, jis={bool(jis)})")
         time.sleep(1.2)
 
         # ── Step 4: Click Book ────────────────────────────────────────────
@@ -287,7 +314,8 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             print(f"  Page body snippet: {body[:400]}")
             driver.save_screenshot("screenshot_debug.png")
 
-        return f"Court {court_num} booked for {date_str} at {display_time}. Check your email."
+        return (f"Court {court_num} booked for {date_str} at {display_time_wib} WIB. "
+                "Check your email.")
 
     except Exception:
         try: driver.save_screenshot("screenshot_debug.png")

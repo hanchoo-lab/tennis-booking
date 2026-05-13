@@ -1,13 +1,20 @@
 [
   {
-    "id": "4z8eezaa",
-    "court": 2,
+    "id": "qx5kvtgy",
+    "court": 1,
     "date": "2026-05-15",
     "time": "06:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "failed",
-    "message": "\"6:00am\" not found for May 15, 2026. Visible time buttons: ['7:00pm', '8:00pm', '11:00pm']",
-    "created_at": "2026-05-13T15:19:11.505Z",
-    "completed_at": "2026-05-13T22:19:59.894853"
+    "status": "queued",
+    "created_at": "2026-05-13T09:56:17.224Z"
+  },
+  {
+    "id": "3nyc0qjq",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "07:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "queued",
+    "created_at": "2026-05-13T10:18:23.196Z"
   }
 ]
