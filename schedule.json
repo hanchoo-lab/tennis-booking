@@ -53,5 +53,16 @@
     "message": "\"6:00am\" not available — slot may be outside the 72-hour window or already booked.",
     "created_at": "2026-05-13T10:16:37.807Z",
     "completed_at": "2026-05-13T10:17:32.315816"
+  },
+  {
+    "id": "f8qi7kf7",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "06:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "queued",
+    "message": "",
+    "created_at": "2026-05-13T10:30:00.867Z",
+    "completed_at": null
   }
 ]
