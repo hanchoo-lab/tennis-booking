@@ -144,6 +144,7 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             if found: break
             time.sleep(1.0)
         if not found:
+            driver.save_screenshot("screenshot_debug.png")
             raise RuntimeError(
                 f'"{display_time}" not available — slot may be outside the 72-hour window or already booked.'
             )
