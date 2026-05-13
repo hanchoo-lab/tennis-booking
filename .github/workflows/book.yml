@@ -12,6 +12,8 @@ permissions:
 jobs:
   book:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Jakarta   # ensures the runner sees WIB times (same as booking page)
 
     steps:
       - name: Check out repository
@@ -37,3 +39,11 @@ jobs:
           git add schedule.json
           git diff --staged --quiet || git commit -m "Update booking status [skip ci]"
           git push
+
+      - name: Upload debug screenshot (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: screenshot_debug.png
+          if-no-files-found: ignore
