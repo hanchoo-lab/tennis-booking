@@ -93,8 +93,7 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         # Navigate mini calendar to correct month
         for _ in range(18):
             header = driver.execute_script("""
-                var re=/^(January|February|March|April|May|June|July|August|
-                          September|October|November|December)\\s+\\d{4}$/;
+                    var re=/^(January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{4}$/;
                 for(var el of document.querySelectorAll('h2,h3,[role="heading"]')){
                     var t=(el.textContent||'').trim();
                     if(re.test(t))return t;

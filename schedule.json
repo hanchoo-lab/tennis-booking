@@ -1,1 +1,68 @@
-[]
+[
+  {
+    "id": "l8ykutfv",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "06:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "failed",
+    "message": "Message: javascript error: Invalid regular expression: missing /\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x558161932b6a <unknown>\n#1 0x558161334265 <unknown>\n#2 0x55816133b111 <unknown>\n#3 0x55816133dc5b <unknown>\n#4 0x5581613d0a99 <unknown>\n#5 0x5581613cf969 <unknown>\n#6 0x55816137a5cf <unknown>\n#7 0x55816137b391 <unknown>\n#8 0x5581618f804b <unknown>\n#9 0x5581618fb00d <unknown>\n#10 0x5581618e4808 <unknown>\n#11 0x5581618fbba0 <unknown>\n#12 0x5581618cb280 <unknown>\n#13 0x55816191fdb8 <unknown>\n#14 0x55816191ff88 <unknown>\n#15 0x5581619315de <unknown>\n#16 0x7f83c829caa4 <unknown>\n#17 0x7f83c8329c6c <unknown>\n",
+    "created_at": "2026-05-13T09:56:17.224Z",
+    "completed_at": "2026-05-13T10:11:06.908660"
+  },
+  {
+    "id": "7oy44rdb",
+    "court": 1,
+    "date": "2026-05-17",
+    "time": "17:00",
+    "run_at": "2026-05-13T17:00:00.000Z",
+    "status": "failed",
+    "message": "Message: javascript error: Invalid regular expression: missing /\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x55cdcc4e2b6a <unknown>\n#1 0x55cdcbee4265 <unknown>\n#2 0x55cdcbeeb111 <unknown>\n#3 0x55cdcbeedc5b <unknown>\n#4 0x55cdcbf80a99 <unknown>\n#5 0x55cdcbf7f969 <unknown>\n#6 0x55cdcbf2a5cf <unknown>\n#7 0x55cdcbf2b391 <unknown>\n#8 0x55cdcc4a804b <unknown>\n#9 0x55cdcc4ab00d <unknown>\n#10 0x55cdcc494808 <unknown>\n#11 0x55cdcc4abba0 <unknown>\n#12 0x55cdcc47b280 <unknown>\n#13 0x55cdcc4cfdb8 <unknown>\n#14 0x55cdcc4cff88 <unknown>\n#15 0x55cdcc4e15de <unknown>\n#16 0x7f24db89caa4 <unknown>\n#17 0x7f24db929c6c <unknown>\n",
+    "created_at": "2026-05-13T09:57:15.798Z",
+    "completed_at": "2026-05-13T10:04:12.885305"
+  },
+  {
+    "id": "0t9l0c0o",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "07:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "failed",
+    "message": "Message: javascript error: Invalid regular expression: missing /\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x55dd63067b6a <unknown>\n#1 0x55dd62a69265 <unknown>\n#2 0x55dd62a70111 <unknown>\n#3 0x55dd62a72c5b <unknown>\n#4 0x55dd62b05a99 <unknown>\n#5 0x55dd62b04969 <unknown>\n#6 0x55dd62aaf5cf <unknown>\n#7 0x55dd62ab0391 <unknown>\n#8 0x55dd6302d04b <unknown>\n#9 0x55dd6303000d <unknown>\n#10 0x55dd63019808 <unknown>\n#11 0x55dd63030ba0 <unknown>\n#12 0x55dd63000280 <unknown>\n#13 0x55dd63054db8 <unknown>\n#14 0x55dd63054f88 <unknown>\n#15 0x55dd630665de <unknown>\n#16 0x7fc25249caa4 <unknown>\n#17 0x7fc252529c6c <unknown>\n",
+    "created_at": "2026-05-13T10:03:42.833Z",
+    "completed_at": "2026-05-13T10:11:12.259197"
+  },
+  {
+    "id": "dxglb5a7",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "06:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "failed",
+    "message": "Message: javascript error: Invalid regular expression: missing /\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x56172b908b6a <unknown>\n#1 0x56172b30a265 <unknown>\n#2 0x56172b311111 <unknown>\n#3 0x56172b313c5b <unknown>\n#4 0x56172b3a6a99 <unknown>\n#5 0x56172b3a5969 <unknown>\n#6 0x56172b3505cf <unknown>\n#7 0x56172b351391 <unknown>\n#8 0x56172b8ce04b <unknown>\n#9 0x56172b8d100d <unknown>\n#10 0x56172b8ba808 <unknown>\n#11 0x56172b8d1ba0 <unknown>\n#12 0x56172b8a1280 <unknown>\n#13 0x56172b8f5db8 <unknown>\n#14 0x56172b8f5f88 <unknown>\n#15 0x56172b9075de <unknown>\n#16 0x7ff504a9caa4 <unknown>\n#17 0x7ff504b29c6c <unknown>\n",
+    "created_at": "2026-05-13T10:12:27.700Z",
+    "completed_at": "2026-05-13T10:12:55.895128"
+  },
+  {
+    "id": "qx5kvtgy",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "06:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "failed",
+    "message": "\"6:00am\" not available \u2014 slot may be outside the 72-hour window or already booked.",
+    "created_at": "2026-05-13T10:16:37.807Z",
+    "completed_at": "2026-05-13T10:17:32.315816"
+  },
+  {
+    "id": "3nyc0qjq",
+    "court": 1,
+    "date": "2026-05-15",
+    "time": "07:00",
+    "run_at": "2026-05-11T17:00:00.000Z",
+    "status": "failed",
+    "message": "\"7:00am\" not available \u2014 slot may be outside the 72-hour window or already booked.",
+    "created_at": "2026-05-13T10:18:23.195Z",
+    "completed_at": "2026-05-13T10:19:18.461450"
+  }
+]
