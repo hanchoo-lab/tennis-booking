@@ -91,49 +91,62 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         driver.get(COURT_URLS[court_num])
         time.sleep(4)
 
-<<<<<<< HEAD
         # ── Step 1: Navigate to the correct date ──────────────────────────
-        print(f"  Looking for date button: '{target_label}'")
-        clicked_date = False
+        # Dump all date buttons immediately so we can see what's on the page
+        def dump_page_dates():
+            info = driver.execute_script(
+                "var out=[];"
+                "for(var b of document.querySelectorAll('button')){"
+                "  var lbl=b.getAttribute('aria-label')||'';"
+                "  if(/[A-Z][a-z]+ [0-9]/.test(lbl)){out.push(lbl+(b.disabled?' [DISABLED]':''));}"
+                "}"
+                "return out;"
+            )
+            print(f"  Date buttons on page: {info}")
+            return info
 
+        print(f"  Target date label: '{target_label}'")
+        dump_page_dates()
+
+        clicked_date = False
         for attempt in range(16):
-            # Try clicking the target date by aria-label
+            # Try clicking the target date (including disabled — Google sometimes marks
+            # dates with only some slots taken as "disabled" in aria but still clickable)
             result = driver.execute_script(
                 "var exp=arguments[0];"
                 "for(var b of document.querySelectorAll('button')){"
                 "  var lbl=b.getAttribute('aria-label')||'';"
-                "  if(lbl.indexOf(exp)!==-1&&!b.disabled){b.click();return 'ok';}"
+                "  if(lbl.indexOf(exp)!==-1&&!b.disabled){b.click();return 'enabled';}"
+                "}"
+                # Second pass: try disabled buttons too (some Google UI marks past-day buttons
+                # as disabled but the target day might still be bookable)
+                "for(var b of document.querySelectorAll('button')){"
+                "  var lbl=b.getAttribute('aria-label')||'';"
+                "  if(lbl.indexOf(exp)!==-1){b.click();return 'disabled-forced';}"
                 "}"
                 "return null;",
                 target_label
             )
             if result:
                 clicked_date = True
-                print(f"  Clicked date (attempt {attempt+1})")
+                print(f"  Clicked date '{target_label}' ({result}) on attempt {attempt+1}")
                 break
 
-            # Not found yet – log and advance the calendar
-            visible_dates = driver.execute_script(
-                "var out=[];"
-                "for(var b of document.querySelectorAll('button')){"
-                "  var lbl=b.getAttribute('aria-label')||'';"
-                "  if(lbl.match(/[A-Z][a-z]+ [0-9]+, [0-9]{4}/)){out.push(lbl);}"
-                "}"
-                "return out.slice(0,5);"
-            )
-            print(f"  Attempt {attempt+1}: not found. Sample dates on page: {visible_dates}")
-
-            # Click next (prefer week-level next, fall back to any next)
+            # Not found — advance calendar
+            visible = dump_page_dates()
             advanced = driver.execute_script(
                 "var btns=document.querySelectorAll('button');"
+                # Prefer next-week / next-period button (not month)
                 "for(var b of btns){"
                 "  var lbl=(b.getAttribute('aria-label')||'').toLowerCase();"
                 "  if(lbl.indexOf('next')!==-1&&lbl.indexOf('month')===-1&&!b.disabled){b.click();return 'week-next';}"
                 "}"
+                # Arrow buttons
                 "for(var b of btns){"
                 "  var t=b.textContent.trim();"
                 "  if((t==='›'||t==='>')&&!b.disabled){b.click();return 'arrow-next';}"
                 "}"
+                # Any next button
                 "for(var b of btns){"
                 "  var lbl=(b.getAttribute('aria-label')||'').toLowerCase();"
                 "  if(lbl.indexOf('next')!==-1&&!b.disabled){b.click();return 'any-next';}"
@@ -141,9 +154,10 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
                 "return null;"
             )
             if not advanced:
-                print("  ERROR: No Next button found — dumping all button labels:")
+                print("  ERROR: No Next button found — dumping ALL button labels:")
                 all_btns = driver.execute_script(
-                    "return Array.from(document.querySelectorAll('button')).map(b=>(b.getAttribute('aria-label')||b.textContent.trim()).substring(0,60));"
+                    "return Array.from(document.querySelectorAll('button'))"
+                    ".map(b=>(b.getAttribute('aria-label')||b.textContent.trim()).substring(0,80));"
                 )
                 for btn in all_btns:
                     print(f"    [{btn}]")
@@ -154,10 +168,11 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             time.sleep(0.9)
 
         if not clicked_date:
+            dump_page_dates()
             driver.save_screenshot("screenshot_debug.png")
             raise RuntimeError(
-                f"Date '{target_label}' not found after 16 navigation attempts. "
-                "It may be outside the 72-hour booking window."
+                f"Date '{target_label}' not found/clickable after 16 attempts. "
+                "It may be fully booked or outside the 72-hour booking window."
             )
 
         time.sleep(2.5)
@@ -174,58 +189,6 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
                 "}"
                 "return false;",
                 display_time
-=======
-        # Navigate to correct week using week-view arrows
-        from datetime import date as _d, timedelta as _td
-        target_dt   = _d(year, month, day)
-        today_dt    = _d.today()
-        weeks_ahead = max(0, ((target_dt - _td(days=target_dt.weekday())) -
-                              (today_dt  - _td(days=today_dt.weekday()))).days // 7)
-        print(f"  Advancing {weeks_ahead} week(s)...")
-        for _ in range(weeks_ahead):
-            driver.execute_script("""
-                for(var b of document.querySelectorAll('button')){
-                    var l=(b.getAttribute('aria-label')||'').toLowerCase();
-                    if(l.includes('next')&&!l.includes('month')&&!b.disabled){b.click();return;}
-                }
-                for(var b of document.querySelectorAll('button')){
-                    var t=b.textContent.trim();
-                    if((t==='\u203a'||t==='>')&&!b.disabled){b.click();return;}
-                }
-            """)
-            time.sleep(1.0)
-
-        # Click date by aria-label only (no guessing by number)
-        result = driver.execute_script("""
-            var exp=arguments[1]+' '+arguments[0]+', '+arguments[2];
-            for(var b of document.querySelectorAll('button')){
-                if((b.getAttribute('aria-label')||'').includes(exp)&&!b.disabled){b.click();return true;}
-            }
-            return null;
-        """, day, target_month, year)
-        if not result:
-            raise RuntimeError(f"{target_month} {day} not clickable — may not be in the booking window yet")
-        print(f"  Clicked {target_month} {day}")
-        time.sleep(2.5)
-
-        # Click time slot
-        found = False
-        for _ in range(12):
-            found = driver.execute_script("""
-                var t=arguments[0];
-                for(var b of document.querySelectorAll('button')){
-                    if(b.textContent.trim().toLowerCase()===t.toLowerCase()&&!b.disabled){
-                        b.click();return true;
-                    }
-                }return false;
-            """, display_time)
-            if found: break
-            time.sleep(1.0)
-        if not found:
-            driver.save_screenshot("screenshot_debug.png")
-            raise RuntimeError(
-                f'"{display_time}" not available — slot may be outside the 72-hour window or already booked.'
->>>>>>> 91ae41bab75df89da1ace446c184c943b0d9096c
             )
             if result:
                 found_time = True
@@ -233,16 +196,15 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
             time.sleep(0.8)
 
         if not found_time:
-            # Log all visible time buttons for debugging
             visible_times = driver.execute_script(
                 "var out=[];"
                 "for(var b of document.querySelectorAll('button')){"
                 "  var t=b.textContent.trim();"
-                "  if(t.match(/^[0-9]+:[0-9]+(am|pm)$/i)){out.push(t);}"
+                "  if(/^[0-9]+:[0-9]+(am|pm)$/i.test(t)){out.push(t+(b.disabled?' [DISABLED]':''));}"
                 "}"
                 "return out;"
             )
-            print(f"  Available time slots on page: {visible_times}")
+            print(f"  Available time slots: {visible_times}")
             driver.save_screenshot("screenshot_debug.png")
             raise RuntimeError(
                 f'"{display_time}" not available — '
@@ -293,7 +255,7 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
         ok   = any(w in body for w in ("confirmed","booked","scheduled","thank"))
         print(f"  Confirmation on page: {ok}")
         if not ok:
-            print(f"  Page body snippet: {body[:300]}")
+            print(f"  Page body snippet: {body[:400]}")
             driver.save_screenshot("screenshot_debug.png")
 
         return f"Court {court_num} booked for {date_str} at {display_time}. Check your email."
