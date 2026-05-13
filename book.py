@@ -112,14 +112,6 @@ def book_court(court_num: int, date_str: str, time_str: str) -> str:
     wait   = WebDriverWait(driver, 15)
 
     try:
-        # Try CDP timezone override before loading (best effort; not required)
-        try:
-            driver.execute_cdp_cmd("Emulation.setTimezoneOverride",
-                                   {"timezoneId": "Asia/Jakarta"})
-            print("  CDP: timezone pre-set to Asia/Jakarta")
-        except Exception as e:
-            print(f"  CDP timezone skipped: {e}")
-
         print("  Loading booking page...")
         driver.get(COURT_URLS[court_num])
         time.sleep(5)
