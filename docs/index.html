@@ -232,8 +232,16 @@
       <div class="panel">
         <div class="panel-head">
           📅 Scheduled
-          <button onclick="loadStatus()" title="Refresh"
-            style="border:none;background:none;cursor:pointer;font-size:.9rem;color:var(--gray);">↺</button>
+          <span style="display:flex;gap:.4rem;align-items:center;">
+            <button onclick="clearCompleted()" title="Remove all finished entries"
+              style="border:1px solid var(--border);background:#fff;cursor:pointer;font-size:.72rem;
+                     color:var(--gray);padding:.2rem .55rem;border-radius:.35rem;">Clear done</button>
+            <button onclick="clearAll()" title="Remove everything"
+              style="border:1px solid var(--border);background:#fff;cursor:pointer;font-size:.72rem;
+                     color:var(--red);padding:.2rem .55rem;border-radius:.35rem;">Clear all</button>
+            <button onclick="loadStatus()" title="Refresh"
+              style="border:none;background:none;cursor:pointer;font-size:.9rem;color:var(--gray);">↺</button>
+          </span>
         </div>
         <div class="panel-body" id="statusList">
           <div class="q-empty">Loading…</div>
@@ -505,7 +513,7 @@ async function loadStatus() {
       const runAt=new Date(b.run_at);
       const div=document.createElement('div'); div.className=`status-item s-${b.status}`;
       div.innerHTML=`
-        ${b.status==='pending'?`<button class="del-btn" title="Cancel" onclick="cancelBooking('${b.id}')">✕</button>`:''}
+        <button class="del-btn" title="${b.status==='pending'?'Cancel booking':'Remove from list'}" onclick="deleteBooking('${b.id}')">✕</button>
         <span class="badge badge-${b.status}">${STATUS_LABEL[b.status]||b.status}</span>
         <div class="s-title" style="margin-top:.3rem">
           ${STATUS_ICON[b.status]||''} Court ${b.court} · ${fmt12(parseInt(b.time.split(':')[0]))}
@@ -522,14 +530,39 @@ async function loadStatus() {
   }
 }
 
-async function cancelBooking(id) {
-  if(!confirm('Cancel this scheduled booking?')) return;
+async function deleteBooking(id) {
   try {
     const { data, sha } = await readSchedule();
-    const idx = data.findIndex(b=>b.id===id);
-    if(idx!==-1){ data[idx].status='cancelled'; data[idx].message='Cancelled by user.'; }
-    await writeSchedule(data, sha);
-    await loadStatus(); toast('Booking cancelled.', 2500);
+    const item = data.find(b=>b.id===id);
+    if(!item) return;
+    const isPending = item.status === 'pending' || item.status === 'queued';
+    const msg = isPending ? 'Cancel this upcoming booking?' : 'Remove this entry from the list?';
+    if(!confirm(msg)) return;
+    const updated = data.filter(b=>b.id!==id);
+    await writeSchedule(updated, sha);
+    await loadStatus();
+    toast(isPending ? 'Booking cancelled.' : 'Entry removed.', 2500);
+  } catch(e){ toast('Error: '+e.message, 4000); }
+}
+
+async function clearCompleted() {
+  if(!confirm('Remove all finished entries (booked, failed, cancelled)?')) return;
+  try {
+    const { data, sha } = await readSchedule();
+    const updated = data.filter(b=>b.status==='pending'||b.status==='queued'||b.status==='running');
+    await writeSchedule(updated, sha);
+    await loadStatus();
+    toast('Completed entries cleared.', 2500);
+  } catch(e){ toast('Error: '+e.message, 4000); }
+}
+
+async function clearAll() {
+  if(!confirm('Remove ALL entries including upcoming bookings? This cannot be undone.')) return;
+  try {
+    const { data, sha } = await readSchedule();
+    await writeSchedule([], sha);
+    await loadStatus();
+    toast('All entries cleared.', 2500);
   } catch(e){ toast('Error: '+e.message, 4000); }
 }
 
