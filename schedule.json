@@ -5,8 +5,10 @@
     "date": "2026-05-15",
     "time": "06:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "queued",
-    "created_at": "2026-05-13T09:56:17.224Z"
+    "status": "failed",
+    "created_at": "2026-05-13T09:56:17.224Z",
+    "message": "Message: javascript error: Illegal invocation\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x55fb138cdb6a <unknown>\n#1 0x55fb132cf265 <unknown>\n#2 0x55fb132d6111 <unknown>\n#3 0x55fb132d8c5b <unknown>\n#4 0x55fb1336ba99 <unknown>\n#5 0x55fb1336a969 <unknown>\n#6 0x55fb133155cf <unknown>\n#7 0x55fb13316391 <unknown>\n#8 0x55fb1389304b <unknown>\n#9 0x55fb1389600d <unknown>\n#10 0x55fb1387f808 <unknown>\n#11 0x55fb13896ba0 <unknown>\n#12 0x55fb13866280 <unknown>\n#13 0x55fb138badb8 <unknown>\n#14 0x55fb138baf88 <unknown>\n#15 0x55fb138cc5de <unknown>\n#16 0x7fb2c8e9caa4 <unknown>\n#17 0x7fb2c8f29c6c <unknown>\n",
+    "completed_at": "2026-05-15T04:22:47.616863"
   },
   {
     "id": "3nyc0qjq",
@@ -14,7 +16,9 @@
     "date": "2026-05-15",
     "time": "07:00",
     "run_at": "2026-05-11T17:00:00.000Z",
-    "status": "queued",
-    "created_at": "2026-05-13T10:18:23.196Z"
+    "status": "failed",
+    "created_at": "2026-05-13T10:18:23.196Z",
+    "message": "Message: javascript error: Illegal invocation\n  (Session info: chrome=147.0.7727.55)\nStacktrace:\n#0 0x56311f5c4b6a <unknown>\n#1 0x56311efc6265 <unknown>\n#2 0x56311efcd111 <unknown>\n#3 0x56311efcfc5b <unknown>\n#4 0x56311f062a99 <unknown>\n#5 0x56311f061969 <unknown>\n#6 0x56311f00c5cf <unknown>\n#7 0x56311f00d391 <unknown>\n#8 0x56311f58a04b <unknown>\n#9 0x56311f58d00d <unknown>\n#10 0x56311f576808 <unknown>\n#11 0x56311f58dba0 <unknown>\n#12 0x56311f55d280 <unknown>\n#13 0x56311f5b1db8 <unknown>\n#14 0x56311f5b1f88 <unknown>\n#15 0x56311f5c35de <unknown>\n#16 0x7fcf4009caa4 <unknown>\n#17 0x7fcf40129c6c <unknown>\n",
+    "completed_at": "2026-05-15T04:22:57.949991"
   }
 ]
