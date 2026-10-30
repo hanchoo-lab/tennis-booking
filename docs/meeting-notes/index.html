@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting Notes</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --ink: #1d2330; --muted: #6b7280; --line: #e3e6eb;
+    --accent: #2563eb; --accent-ink: #fff; --rec: #dc2626; --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12151b; --panel: #1b1f27; --ink: #e6e8ec; --muted: #9aa3b2; --line: #2b313c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 12px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.rec { background: var(--rec); color: #fff; border-color: var(--rec); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input, select, textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; width: 100%; }
+  textarea { resize: vertical; min-height: 90px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+
+  .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+  aside { border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  aside header { padding: 12px; display: flex; gap: 8px; flex-direction: column; border-bottom: 1px solid var(--line); }
+  #list { overflow-y: auto; flex: 1; }
+  .item { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .item:hover { background: var(--bg); }
+  .item.active { border-left: 3px solid var(--accent); background: var(--bg); }
+  .item .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .m { font-size: 12px; color: var(--muted); }
+  aside footer { padding: 10px 12px; border-top: 1px solid var(--line); display: flex; gap: 6px; flex-wrap: wrap; }
+  aside footer button { font-size: 12px; padding: 4px 8px; }
+
+  main { overflow-y: auto; padding: 20px 28px 60px; }
+  .empty { color: var(--muted); text-align: center; margin-top: 20vh; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .title-input { font-size: 22px; font-weight: 700; border: none; padding: 4px 0; background: transparent; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .timer { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 18px; min-width: 70px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); display: inline-block; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .2; } }
+  .hint { font-size: 12px; color: var(--muted); }
+  .warn { font-size: 13px; background: #fef3c7; color: #78350f; border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+
+  #transcript { max-height: 320px; overflow-y: auto; font-size: 14px; }
+  .line { padding: 3px 0; display: flex; gap: 10px; }
+  .line .ts { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; width: 52px; }
+  .line.note .txt { font-weight: 600; color: var(--accent); }
+  .line .txt[contenteditable]:focus { outline: 1px dashed var(--line); }
+  .interim { color: var(--muted); font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px; vertical-align: middle; }
+  td input[type=checkbox] { width: auto; }
+  tr.done input[type=text] { text-decoration: line-through; color: var(--muted); }
+  .x { border: none; background: none; color: var(--muted); padding: 2px 6px; }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+    aside { max-height: 40vh; }
+    main { padding: 14px; }
+  }
+  @media print {
+    aside, .no-print { display: none !important; }
+    .app { display: block; } main { overflow: visible; }
+    .card { border: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <button class="primary" id="newBtn">+ New meeting</button>
+      <input id="search" placeholder="Search notes…">
+    </header>
+    <div id="list"></div>
+    <footer>
+      <button id="backupBtn" title="Download all meetings as JSON">Backup</button>
+      <button id="restoreBtn" title="Import a JSON backup">Restore</button>
+      <input type="file" id="restoreFile" accept="application/json" hidden>
+    </footer>
+  </aside>
+  <main id="main"><div class="empty">Create or select a meeting.</div></main>
+</div>
+
+<script>
+'use strict';
+const STORE = 'meetingNotes.v1';
+const $ = (s, el = document) => el.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtClock = ms => { const s = Math.floor(ms / 1000); const h = Math.floor(s / 3600); const m = Math.floor(s % 3600 / 60); const ss = s % 60; return (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0'); };
+const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+let meetings = load();
+let currentId = null;
+let saveTimer = null;
+
+function load() { try { return JSON.parse(localStorage.getItem(STORE)) || []; } catch { return []; } }
+function persist() {
+  try { localStorage.setItem(STORE, JSON.stringify(meetings)); }
+  catch (e) { alert('Could not save — browser storage may be full. Make a Backup and delete old meetings.\n\n' + e.message); }
+}
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { persist(); renderList(); }, 400); }
+const cur = () => meetings.find(m => m.id === currentId);
+
+function newMeeting() {
+  const m = {
+    id: uid(), title: 'Untitled meeting', when: nowLocal(), mode: 'inperson',
+    location: '', link: '', attendees: '', agenda: '', notes: '', decisions: '',
+    actions: [], transcript: [], elapsedMs: 0, created: Date.now(), updated: Date.now()
+  };
+  meetings.unshift(m); persist(); open(m.id);
+}
+
+// ---------- Sidebar ----------
+function renderList() {
+  const q = $('#search').value.trim().toLowerCase();
+  const items = meetings
+    .filter(m => !q || JSON.stringify([m.title, m.attendees, m.agenda, m.notes, m.decisions, m.actions, m.transcript]).toLowerCase().includes(q))
+    .sort((a, b) => (b.when || '').localeCompare(a.when || ''));
+  $('#list').innerHTML = items.map(m => `
+    <div class="item ${m.id === currentId ? 'active' : ''}" data-id="${m.id}">
+      <div class="t">${esc(m.title || 'Untitled')}</div>
+      <div class="m">${m.mode === 'online' ? '💻 Online' : '🏢 In person'} · ${esc((m.when || '').replace('T', ' '))}
+        ${m.actions.filter(a => !a.done).length ? ' · ' + m.actions.filter(a => !a.done).length + ' open' : ''}</div>
+    </div>`).join('') || '<div class="item m">No meetings.</div>';
+}
+$('#list').addEventListener('click', e => { const it = e.target.closest('.item[data-id]'); if (it) open(it.dataset.id); });
+$('#search').addEventListener('input', renderList);
+$('#newBtn').addEventListener('click', newMeeting);
+
+// ---------- Editor ----------
+function open(id) {
+  if (session.running && id !== currentId && !confirm('A meeting is being captured. Stop it and switch?')) return;
+  if (id !== currentId) stopSession();
+  currentId = id; renderList(); renderEditor();
+}
+
+function renderEditor() {
+  const m = cur();
+  if (!m) { $('#main').innerHTML = '<div class="empty">Create or select a meeting.</div>'; return; }
+  $('#main').innerHTML = `
+    <input class="title-input" id="f_title" value="${esc(m.title)}">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <div class="seg no-print">
+          <button data-mode="inperson" class="${m.mode !== 'online' ? 'on' : ''}">🏢 In person</button>
+          <button data-mode="online" class="${m.mode === 'online' ? 'on' : ''}">💻 Online</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div><label>Date &amp; time</label><input type="datetime-local" id="f_when" value="${esc(m.when)}"></div>
+        ${m.mode === 'online'
+          ? `<div><label>Meeting link</label><input id="f_link" placeholder="Zoom / Meet / Teams URL" value="${esc(m.link)}"></div>`
+          : `<div><label>Location</label><input id="f_location" placeholder="Room / address" value="${esc(m.location)}"></div>`}
+        <div><label>Attendees</label><input id="f_attendees" placeholder="Comma separated" value="${esc(m.attendees)}"></div>
+      </div>
+    </div>
+
+    <div class="card no-print" id="captureCard">
+      <h3>Capture</h3>
+      <div class="row">
+        <button id="startBtn" class="${session.running ? 'rec' : 'primary'}">${session.running ? '■ Stop' : '● Start meeting'}</button>
+        <span class="timer" id="timer">${fmtClock(m.elapsedMs)}</span>
+        ${session.running ? '<span class="dot"></span>' : ''}
+        <label style="display:flex;gap:6px;align-items:center;margin:0;font-size:13px;color:var(--ink)">
+          <input type="checkbox" id="optTranscribe" style="width:auto" ${session.optTranscribe ? 'checked' : ''} ${session.running ? 'disabled' : ''}> Live transcript
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;margin:0;font-size:13px;color:var(--ink)">
+          <input type="checkbox" id="optRecord" style="width:auto" ${session.optRecord ? 'checked' : ''} ${session.running ? 'disabled' : ''}> Record audio${m.mode === 'online' ? ' (mic + call tab)' : ''}
+        </label>
+        <select id="optLang" style="width:auto" ${session.running ? 'disabled' : ''}>
+          ${['en-US', 'en-GB', 'en-AU', 'ko-KR', 'ja-JP', 'zh-CN', 'es-ES', 'fr-FR', 'de-DE'].map(l => `<option ${l === session.lang ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="quickNote" placeholder="Timestamped note — press Enter (works with or without transcript)" style="flex:1">
+      </div>
+      <div class="hint" style="margin-top:6px">${m.mode === 'online'
+        ? 'Online: transcription hears your microphone only. Use speakers (not headphones) if you want other participants transcribed — accuracy will be lower. Audio recording can also capture the call tab/screen audio.'
+        : 'In person: put the device in the middle of the table. Transcription works best in a quiet room with one person speaking at a time.'}</div>
+      <div id="capWarn"></div>
+    </div>
+
+    <div class="card">
+      <h3>Transcript &amp; timestamped notes</h3>
+      <div id="transcript"></div>
+      <div class="interim" id="interim"></div>
+      <div class="row no-print" style="margin-top:8px">
+        <button id="clearTx">Clear transcript</button>
+      </div>
+    </div>
+
+    <div class="card"><h3>Agenda</h3><textarea id="f_agenda" placeholder="1. …">${esc(m.agenda)}</textarea></div>
+    <div class="card"><h3>Notes</h3><textarea id="f_notes" style="min-height:180px">${esc(m.notes)}</textarea></div>
+    <div class="card"><h3>Decisions</h3><textarea id="f_decisions" placeholder="- …">${esc(m.decisions)}</textarea></div>
+
+    <div class="card">
+      <h3>Action items</h3>
+      <table id="actions"></table>
+      <button class="no-print" id="addAction" style="margin-top:8px">+ Add action</button>
+    </div>
+
+    <div class="row no-print">
+      <button id="copyMd">Copy as Markdown</button>
+      <button id="dlMd">Download .md</button>
+      <button id="emailBtn">Email summary</button>
+      <button id="printBtn">Print / PDF</button>
+      <span style="flex:1"></span>
+      <button id="delBtn" style="color:var(--rec)">Delete meeting</button>
+    </div>`;
+
+  // field bindings
+  for (const f of ['title', 'when', 'location', 'link', 'attendees', 'agenda', 'notes', 'decisions']) {
+    const el = $('#f_' + f); if (!el) continue;
+    el.addEventListener('input', () => { m[f] = el.value; m.updated = Date.now(); saveSoon(); });
+  }
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    if (session.running) return alert('Stop capture before switching mode.');
+    m.mode = b.dataset.mode; persist(); renderList(); renderEditor();
+  }));
+
+  $('#optTranscribe').addEventListener('change', e => session.optTranscribe = e.target.checked);
+  $('#optRecord').addEventListener('change', e => session.optRecord = e.target.checked);
+  $('#optLang').addEventListener('change', e => session.lang = e.target.value);
+  $('#startBtn').addEventListener('click', () => session.running ? stopSession() : startSession());
+  $('#quickNote').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.value.trim()) { addLine(e.target.value.trim(), 'note'); e.target.value = ''; }
+  });
+  $('#clearTx').addEventListener('click', () => { if (confirm('Clear the whole transcript?')) { m.transcript = []; persist(); renderTranscript(); } });
+  $('#addAction').addEventListener('click', () => { m.actions.push({ id: uid(), text: '', owner: '', due: '', done: false }); persist(); renderActions(true); });
+  $('#copyMd').addEventListener('click', async () => { try { await navigator.clipboard.writeText(toMarkdown(m)); flash('#copyMd', 'Copied ✓'); } catch { alert('Clipboard blocked — use Download .md instead.'); } });
+  $('#dlMd').addEventListener('click', () => download(slug(m) + '.md', toMarkdown(m), 'text/markdown'));
+  $('#emailBtn').addEventListener('click', () => {
+    const body = toMarkdown(m, { transcript: false });
+    location.href = 'mailto:?subject=' + encodeURIComponent('Notes: ' + m.title) + '&body=' + encodeURIComponent(body.slice(0, 1800));
+  });
+  $('#printBtn').addEventListener('click', () => window.print());
+  $('#delBtn').addEventListener('click', () => {
+    if (!confirm(`Delete "${m.title}"? This cannot be undone.`)) return;
+    stopSession(); meetings = meetings.filter(x => x.id !== m.id); currentId = null; persist(); renderList(); renderEditor();
+  });
+
+  renderTranscript(); renderActions();
+  if (session.warn) showWarn(session.warn);
+}
+
+function renderActions(focusLast) {
+  const m = cur(); const t = $('#actions'); if (!t) return;
+  t.innerHTML = m.actions.map(a => `
+    <tr data-id="${a.id}" class="${a.done ? 'done' : ''}">
+      <td style="width:28px"><input type="checkbox" data-k="done" ${a.done ? 'checked' : ''}></td>
+      <td><input type="text" data-k="text" placeholder="What" value="${esc(a.text)}"></td>
+      <td style="width:22%"><input type="text" data-k="owner" placeholder="Who" value="${esc(a.owner)}"></td>
+      <td style="width:150px"><input type="date" data-k="due" value="${esc(a.due)}"></td>
+      <td style="width:30px"><button class="x no-print" data-del>✕</button></td>
+    </tr>`).join('');
+  t.oninput = t.onchange = e => {
+    const tr = e.target.closest('tr'); const k = e.target.dataset.k; if (!tr || !k) return;
+    const a = m.actions.find(x => x.id === tr.dataset.id);
+    a[k] = k === 'done' ? e.target.checked : e.target.value;
+    if (k === 'done') tr.classList.toggle('done', a.done);
+    saveSoon();
+  };
+  t.onclick = e => {
+    if (!e.target.hasAttribute('data-del')) return;
+    const id = e.target.closest('tr').dataset.id; m.actions = m.actions.filter(x => x.id !== id); persist(); renderActions(); renderList();
+  };
+  if (focusLast) { const ins = t.querySelectorAll('input[data-k=text]'); ins[ins.length - 1]?.focus(); }
+}
+
+function renderTranscript() {
+  const m = cur(); const box = $('#transcript'); if (!box) return;
+  box.innerHTML = m.transcript.map((l, i) => `
+    <div class="line ${l.kind}"><span class="ts">${fmtClock(l.t)}</span>
+    <span class="txt" contenteditable="true" data-i="${i}">${esc(l.text)}</span></div>`).join('')
+    || '<div class="hint">Nothing yet. Press “Start meeting”, or type timestamped notes above.</div>';
+  box.oninput = e => { const i = e.target.dataset.i; if (i != null) { m.transcript[i].text = e.target.textContent; saveSoon(); } };
+  box.scrollTop = box.scrollHeight;
+}
+
+function addLine(text, kind) {
+  const m = cur(); if (!m) return;
+  m.transcript.push({ t: currentElapsed(), text, kind, at: Date.now() });
+  m.updated = Date.now(); persist(); renderTranscript();
+}
+
+// ---------- Capture session (timer, speech recognition, recording) ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const session = {
+  running: false, startedAt: 0, baseMs: 0, tick: null,
+  optTranscribe: !!SR, optRecord: false, lang: navigator.language && navigator.language.includes('-') ? navigator.language : 'en-US',
+  rec: null, recorder: null, chunks: [], streams: [], audioCtx: null, warn: ''
+};
+function currentElapsed() { const m = cur(); return session.running ? session.baseMs + (Date.now() - session.startedAt) : (m ? m.elapsedMs : 0); }
+
+async function startSession() {
+  const m = cur(); if (!m) return;
+  session.warn = '';
+  session.running = true; session.startedAt = Date.now(); session.baseMs = m.elapsedMs || 0;
+  session.tick = setInterval(() => { const t = $('#timer'); if (t) t.textContent = fmtClock(currentElapsed()); }, 500);
+  renderEditor();
+
+  if (session.optTranscribe) {
+    if (!SR) showWarn('Live transcription is not supported in this browser. Use Chrome, Edge or Safari. You can still take timestamped notes.');
+    else startRecognition();
+  }
+  if (session.optRecord) {
+    try { await startRecording(m.mode === 'online'); }
+    catch (e) { showWarn('Audio recording not started: ' + e.message); }
+  }
+}
+
+function stopSession() {
+  if (!session.running) return;
+  const m = cur();
+  session.running = false;
+  clearInterval(session.tick);
+  if (m) m.elapsedMs = session.baseMs + (Date.now() - session.startedAt);
+  if (session.rec) { const r = session.rec; session.rec = null; try { r.stop(); } catch {} }
+  if (session.recorder && session.recorder.state !== 'inactive') session.recorder.stop();
+  persist(); renderList(); if (m) renderEditor();
+}
+
+function startRecognition() {
+  const r = new SR();
+  r.continuous = true; r.interimResults = true; r.lang = session.lang;
+  r.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) { const txt = res[0].transcript.trim(); if (txt) addLine(txt, 'speech'); }
+      else interim += res[0].transcript;
+    }
+    const el = $('#interim'); if (el) el.textContent = interim;
+  };
+  r.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { showWarn('Microphone permission denied — transcription off.'); session.rec = null; }
+    else if (e.error === 'network') showWarn('Transcription needs an internet connection (Chrome sends audio to Google’s speech service).');
+  };
+  // Browsers end recognition after silence or ~60s; restart while the meeting runs.
+  r.onend = () => { const el = $('#interim'); if (el) el.textContent = ''; if (session.running && session.rec === r) setTimeout(() => { try { r.start(); } catch {} }, 250); };
+  session.rec = r;
+  try { r.start(); } catch (e) { showWarn('Could not start transcription: ' + e.message); }
+}
+
+async function startRecording(includeTab) {
+  if (!window.MediaRecorder) throw new Error('MediaRecorder not supported in this browser.');
+  const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  session.streams = [mic];
+  let stream = mic;
+  if (includeTab) {
+    try {
+      const disp = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      disp.getVideoTracks().forEach(t => t.stop()); // audio only
+      if (disp.getAudioTracks().length) {
+        session.streams.push(disp);
+        const ctx = new AudioContext(); session.audioCtx = ctx;
+        const dest = ctx.createMediaStreamDestination();
+        ctx.createMediaStreamSource(mic).connect(dest);
+        ctx.createMediaStreamSource(disp).connect(dest);
+        stream = dest.stream;
+      } else showWarn('No call audio shared — tick “Share tab audio” (Chrome) when picking the tab. Recording mic only.');
+    } catch { showWarn('Screen/tab sharing cancelled — recording your microphone only.'); }
+  }
+  const mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  session.chunks = []; session.recorder = rec;
+  const title = cur().title;
+  rec.ondataavailable = e => e.data.size && session.chunks.push(e.data);
+  rec.onstop = () => {
+    const blob = new Blob(session.chunks, { type: rec.mimeType || 'audio/webm' });
+    const ext = (rec.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+    session.streams.forEach(s => s.getTracks().forEach(t => t.stop())); session.streams = [];
+    session.audioCtx?.close(); session.audioCtx = null; session.recorder = null;
+    if (blob.size) downloadBlob(slugStr(title) + '-audio.' + ext, blob);
+  };
+  rec.start(1000);
+}
+
+function showWarn(msg) { session.warn = msg; const w = $('#capWarn'); if (w) w.innerHTML = `<div class="warn">${esc(msg)}</div>`; }
+
+// ---------- Export ----------
+function toMarkdown(m, opts = { transcript: true }) {
+  const out = [`# ${m.title}`, ''];
+  out.push(`- **When:** ${(m.when || '').replace('T', ' ')}`);
+  out.push(`- **Type:** ${m.mode === 'online' ? 'Online' : 'In person'}`);
+  if (m.mode === 'online' && m.link) out.push(`- **Link:** ${m.link}`);
+  if (m.mode !== 'online' && m.location) out.push(`- **Location:** ${m.location}`);
+  if (m.attendees) out.push(`- **Attendees:** ${m.attendees}`);
+  if (m.elapsedMs) out.push(`- **Duration:** ${fmtClock(m.elapsedMs)}`);
+  const sec = (h, v) => { if (v && v.trim()) out.push('', `## ${h}`, '', v.trim()); };
+  sec('Agenda', m.agenda); sec('Notes', m.notes); sec('Decisions', m.decisions);
+  if (m.actions.length) {
+    out.push('', '## Action items', '');
+    m.actions.forEach(a => out.push(`- [${a.done ? 'x' : ' '}] ${a.text}${a.owner ? ' — @' + a.owner : ''}${a.due ? ' (due ' + a.due + ')' : ''}`));
+  }
+  const notes = m.transcript.filter(l => l.kind === 'note');
+  if (!opts.transcript && notes.length) { out.push('', '## Timestamped notes', ''); notes.forEach(l => out.push(`- [${fmtClock(l.t)}] ${l.text}`)); }
+  if (opts.transcript && m.transcript.length) {
+    out.push('', '## Transcript', '');
+    m.transcript.forEach(l => out.push(`- [${fmtClock(l.t)}] ${l.kind === 'note' ? '**' + l.text + '**' : l.text}`));
+  }
+  return out.join('\n') + '\n';
+}
+const slugStr = s => ((s || 'meeting').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'meeting');
+const slug = m => (m.when || '').slice(0, 10) + '-' + slugStr(m.title);
+function download(name, text, type) { downloadBlob(name, new Blob([text], { type })); }
+function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+function flash(sel, txt) { const b = $(sel); const o = b.textContent; b.textContent = txt; setTimeout(() => b.textContent = o, 1200); }
+
+$('#backupBtn').addEventListener('click', () => download('meeting-notes-backup-' + nowLocal().slice(0, 10) + '.json', JSON.stringify(meetings, null, 2), 'application/json'));
+$('#restoreBtn').addEventListener('click', () => $('#restoreFile').click());
+$('#restoreFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data)) throw new Error('Not a backup file');
+    const ids = new Set(meetings.map(m => m.id)); let added = 0;
+    data.forEach(m => { if (m && m.id && !ids.has(m.id)) { meetings.push({ actions: [], transcript: [], ...m }); added++; } });
+    persist(); renderList(); alert(`Imported ${added} meeting(s). Existing ones were kept.`);
+  } catch (err) { alert('Restore failed: ' + err.message); }
+  e.target.value = '';
+});
+
+window.addEventListener('beforeunload', e => { persist(); if (session.running) { e.preventDefault(); e.returnValue = ''; } });
+renderList();
+if (meetings[0]) open(meetings[0].id);
+</script>
+</body>
+</html>
